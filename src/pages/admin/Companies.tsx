@@ -5,6 +5,12 @@ import { Alert, Button, Card, Field, Input, PinBox, Select } from "../../compone
 
 type Row = Tables<"workspaces"> & { plan: { name: string } | null; status?: string };
 
+// Web addresses allow lowercase letters, numbers and single dashes, 3 to 48 long.
+function toSlug(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "").slice(0, 48);
+}
+const SLUG_OK = /^[a-z0-9]([a-z0-9-]{1,46}[a-z0-9])?$/;
+
 export default function Companies() {
   const [rows, setRows] = useState<Row[]>([]);
   const [plans, setPlans] = useState<Tables<"plans">[]>([]);
@@ -143,20 +149,29 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
   const [result, setResult] = useState<{ owner_pin: string } | null>(null);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+  const [slugTouched, setSlugTouched] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    const slug = form.slug.replace(/-+$/, "");
+    if (!SLUG_OK.test(slug)) {
+      return setError("Web address must be 3 to 48 characters: lowercase letters, numbers and dashes, not starting or ending with a dash.");
+    }
     const { data, error } = await supabase.rpc("admin_create_workspace", {
       p_name: form.name,
-      p_slug: form.slug.toLowerCase(),
+      p_slug: slug,
       p_plan_id: form.plan_id || plans[0]?.id,
       p_owner_name: form.owner_name,
       p_owner_email: form.owner_email || undefined,
       p_owner_phone: form.owner_phone || undefined,
       p_trial_days: form.trial_days ? Number(form.trial_days) : undefined,
     });
-    if (error) return setError(error.message);
+    if (error) {
+      return setError(
+        /duplicate|unique/i.test(error.message) ? "That web address is already taken. Choose another." : error.message,
+      );
+    }
     setResult(data as { owner_pin: string });
     onCreated();
   }
@@ -172,9 +187,23 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
 
   return (
     <form onSubmit={submit} className="mb-6 grid gap-4 border-b border-slate-200 pb-6 sm:grid-cols-2">
-      <Field label="Company name"><Input required value={form.name} onChange={set("name")} /></Field>
+      <Field label="Company name">
+        <Input
+          required
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugTouched ? form.slug : toSlug(e.target.value) })}
+        />
+      </Field>
       <Field label="Web address" hint="Lowercase letters, numbers and dashes. Used in /w/address.">
-        <Input required pattern="[a-z0-9][a-z0-9-]{1,46}[a-z0-9]" value={form.slug} onChange={set("slug")} />
+        <Input
+          required
+          minLength={3}
+          value={form.slug}
+          onChange={(e) => {
+            setSlugTouched(true);
+            setForm({ ...form, slug: toSlug(e.target.value) });
+          }}
+        />
       </Field>
       <Field label="Plan">
         <Select value={form.plan_id} onChange={set("plan_id")}>
