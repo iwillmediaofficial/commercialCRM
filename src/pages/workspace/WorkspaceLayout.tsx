@@ -6,6 +6,7 @@ import { StatusBadge, type WorkspaceStatus } from "../../lib/status";
 import { WorkspaceContext, type WorkspaceCtx } from "../../lib/workspace";
 import { Alert, Spinner } from "../../components/ui";
 import { TopBar } from "../../components/TopBar";
+import { TimerBar } from "../../components/TimerBar";
 
 export default function WorkspaceLayout() {
   const { slug } = useParams();
@@ -42,20 +43,28 @@ export default function WorkspaceLayout() {
   if (missing) return <Navigate to="/" replace />;
   if (!ctx) return <Spinner />;
 
+  const support = isPlatformAdmin && !ctx.role;
+  const admin = ctx.isAdmin || support;
   const nav = [
     { to: "", label: "Dashboard", show: true },
     { to: "leads", label: "Leads", show: ctx.hasModule("leads") },
+    { to: "lead-forms", label: "Lead forms", show: ctx.hasModule("leads") && admin },
     { to: "clients", label: "Clients", show: true },
     { to: "work", label: "Work", show: ctx.hasModule("work") },
-    { to: "invoices", label: "Invoices", show: ctx.hasModule("invoicing") && ctx.isAdmin },
-    { to: "ad-funds", label: "Ad funds", show: ctx.hasModule("ad_funds") && ctx.isAdmin },
-    { to: "team", label: "Team", show: ctx.isAdmin || (isPlatformAdmin && !ctx.role) },
+    { to: "time", label: "Time", show: ctx.hasModule("work") },
+    { to: "invoices", label: "Invoices", show: ctx.hasModule("invoicing") && admin },
+    { to: "recurring", label: "Recurring billing", show: ctx.hasModule("invoicing") && admin },
+    { to: "calendar", label: "Billing calendar", show: ctx.hasModule("invoicing") && admin },
+    { to: "ad-funds", label: "Ad funds", show: ctx.hasModule("ad_funds") && admin },
+    { to: "team", label: "Team", show: true },
+    { to: "settings", label: "Settings", show: admin },
     { to: "billing", label: "Subscription", show: ctx.isAdmin },
   ].filter((n) => n.show);
 
   return (
     <WorkspaceContext.Provider value={ctx}>
-      <TopBar title={ctx.workspace.name} />
+      <TopBar title={ctx.workspace.name} workspace={ctx.workspace} />
+      {ctx.hasModule("work") && ctx.role && <TimerBar />}
       <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 md:flex-row">
         <nav className="flex gap-1 overflow-x-auto md:w-48 md:flex-col">
           {nav.map((n) => (

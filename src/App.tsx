@@ -17,7 +17,16 @@ import WorkspaceLayout from "./pages/workspace/WorkspaceLayout";
 import Dashboard from "./pages/workspace/Dashboard";
 import Team from "./pages/workspace/Team";
 import Billing from "./pages/workspace/Billing";
-import ComingSoon from "./pages/workspace/ComingSoon";
+import Leads from "./pages/workspace/leads/Leads";
+import LeadForms from "./pages/workspace/leads/LeadForms";
+import Clients from "./pages/workspace/clients/Clients";
+import Work from "./pages/workspace/work/Work";
+import Timesheets from "./pages/workspace/time/Timesheets";
+import Invoices from "./pages/workspace/invoices/Invoices";
+import Recurring from "./pages/workspace/invoices/Recurring";
+import BillingCalendar from "./pages/workspace/invoices/Calendar";
+import AdFunds from "./pages/workspace/adfunds/AdFunds";
+import WorkspaceSettings from "./pages/workspace/settings/Settings";
 import PublicForm from "./pages/PublicForm";
 import RouteError from "./components/RouteError";
 
@@ -36,6 +45,7 @@ const router = createBrowserRouter([
       { path: "/signup", element: <Signup /> },
       { path: "/reset", element: <Reset /> },
       { path: "/f/:slug", element: <PublicForm /> },
+      { path: "/form/:slug", element: <PublicForm /> },
       { path: "/", element: <RequireAuth><Home /></RequireAuth> },
       {
         path: "/admin",
@@ -54,11 +64,16 @@ const router = createBrowserRouter([
         element: <RequireAuth><WorkspaceLayout /></RequireAuth>,
         children: [
           { index: true, element: <Dashboard /> },
-          { path: "leads", element: <ComingSoon title="Leads" /> },
-          { path: "clients", element: <ComingSoon title="Clients" /> },
-          { path: "work", element: <ComingSoon title="Work" /> },
-          { path: "invoices", element: <ComingSoon title="Invoices" /> },
-          { path: "ad-funds", element: <ComingSoon title="Ad funds" /> },
+          { path: "leads", element: <Leads /> },
+          { path: "lead-forms", element: <LeadForms /> },
+          { path: "clients", element: <Clients /> },
+          { path: "work", element: <Work /> },
+          { path: "time", element: <Timesheets /> },
+          { path: "invoices", element: <Invoices /> },
+          { path: "recurring", element: <Recurring /> },
+          { path: "calendar", element: <BillingCalendar /> },
+          { path: "ad-funds", element: <AdFunds /> },
+          { path: "settings", element: <WorkspaceSettings /> },
           { path: "team", element: <Team /> },
           { path: "billing", element: <Billing /> },
         ],

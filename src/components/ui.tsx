@@ -1,4 +1,4 @@
-import { useState, type ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export function Button({ className = "", variant = "primary", ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" }) {
@@ -94,6 +94,75 @@ export function PinBox({ pin, expires }: { pin: string; expires?: string }) {
       <div className="mt-1 text-xs text-slate-300">
         Shown once. Works one time{expires ? `, until ${new Date(expires).toLocaleDateString()}` : ""}.
       </div>
+    </div>
+  );
+}
+
+export function Textarea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea rows={3} className={`${inputClass} ${className}`} {...props} />;
+}
+
+// Small coloured pill. Pass any Tailwind colour classes in `tone`.
+export function Badge({ tone = "bg-slate-100 text-slate-700", children }: { tone?: string; children: ReactNode }) {
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{children}</span>;
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="py-6 text-center text-sm text-slate-500">{children}</p>;
+}
+
+// Escape closes only the top-most open Modal or Drawer.
+const escapeStack: (() => void)[] = [];
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    escapeStack.push(onClose);
+    const h = (e: KeyboardEvent) => e.key === "Escape" && escapeStack.at(-1) === onClose && onClose();
+    window.addEventListener("keydown", h);
+    return () => {
+      window.removeEventListener("keydown", h);
+      escapeStack.splice(escapeStack.lastIndexOf(onClose), 1);
+    };
+  }, [onClose]);
+}
+
+// Centred dialog. Render it only while open.
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  useEscape(onClose);
+  return (
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onMouseDown={onClose}>
+      <div
+        role="dialog"
+        aria-label={title}
+        className={`my-8 w-full ${wide ? "max-w-3xl" : "max-w-lg"} rounded-lg bg-white p-5 shadow-xl`}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-base font-semibold">{title}</h2>
+          <button className="text-slate-400 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Panel that slides in from the right. Render it only while open.
+export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEscape(onClose);
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/40" onMouseDown={onClose}>
+      <aside
+        role="dialog"
+        aria-label={title}
+        className="h-full w-full max-w-2xl overflow-y-auto bg-white p-5 shadow-xl"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button className="text-slate-400 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
+        </div>
+        {children}
+      </aside>
     </div>
   );
 }
