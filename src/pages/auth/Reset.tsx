@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { resetWithPin } from "../../lib/pinAuth";
-import { Alert, Button, Field, Input } from "../../components/ui";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import { AuthShell } from "./AuthShell";
 
 // Password reset with a PIN from your company admin (or the Super Admin for owners).
@@ -9,12 +9,14 @@ export default function Reset() {
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (password !== confirm) return setError("The two passwords don't match.");
     setBusy(true);
     setError("");
     const result = await resetWithPin({ email, pin, password });
@@ -38,7 +40,10 @@ export default function Reset() {
             <Input className="font-mono uppercase tracking-widest" required value={pin} onChange={(e) => setPin(e.target.value.toUpperCase())} />
           </Field>
           <Field label="New password" hint="At least 8 characters.">
-            <Input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <PasswordInput autoComplete="new-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
+          </Field>
+          <Field label="Confirm password">
+            <PasswordInput autoComplete="new-password" minLength={8} required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </Field>
           <Button className="w-full" disabled={busy}>{busy ? "Saving…" : "Set new password"}</Button>
         </form>

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
-import { Alert, Button, Field, Input } from "../../components/ui";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import { AuthShell } from "./AuthShell";
 
 export default function Login() {
@@ -40,7 +40,7 @@ export default function Login() {
           <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Password">
-          <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
         <Button className="w-full" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</Button>
       </form>

@@ -78,6 +78,9 @@ export default function Team() {
   }
 
   const active = members.filter((m) => m.is_active).length;
+  // Unused sign-up PINs hold a seat too, so stop handing out PINs that can't be used.
+  const openInvites = pins.filter((p) => p.purpose === "signup" && p.role !== "owner").length;
+  const seatsFull = !!plan?.staff_limit && active + openInvites >= plan.staff_limit;
 
   return (
     <>
@@ -117,6 +120,13 @@ export default function Team() {
 
       {isAdmin && canWrite && (
         <Card title="Invite someone">
+          {seatsFull ? (
+            <Alert tone="warning">
+              All {plan?.staff_limit} seats on your plan are taken
+              {openInvites > 0 ? ` (${openInvites} by unused PIN${openInvites > 1 ? "s" : ""} below)` : ""}.
+              To add someone, deactivate a member, revoke an unused PIN, or upgrade your plan on the Billing page.
+            </Alert>
+          ) : (
           <form
             className="grid gap-3 sm:grid-cols-2"
             onSubmit={(e) => {
@@ -141,6 +151,7 @@ export default function Team() {
             </Field>
             <div className="flex items-end sm:col-span-2"><Button>Create sign-up PIN</Button></div>
           </form>
+          )}
         </Card>
       )}
 

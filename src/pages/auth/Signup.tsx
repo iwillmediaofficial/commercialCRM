@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { supabase } from "../../lib/supabase";
 import { signUpWithPin } from "../../lib/pinAuth";
-import { Alert, Button, Field, Input } from "../../components/ui";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import { AuthShell } from "./AuthShell";
 
 // Sign-up needs a PIN from the Super Admin (company owners) or a company admin
@@ -13,12 +13,14 @@ export default function Signup() {
   const [params] = useSearchParams();
   const asPlatformAdmin = params.get("as") === "platform";
   const [form, setForm] = useState({ email: "", password: "", pin: params.get("pin") ?? "" });
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (form.password !== confirm) return setError("The two passwords don't match.");
     setBusy(true);
     setError("");
     const result = await signUpWithPin({ ...form, purpose: asPlatformAdmin ? "platform_admin" : "signup" });
@@ -42,7 +44,10 @@ export default function Signup() {
           <Input type="email" autoComplete="email" required value={form.email} onChange={set("email")} />
         </Field>
         <Field label="New password" hint="At least 8 characters. If this email already has an account, use that password.">
-          <Input type="password" autoComplete="new-password" minLength={8} required value={form.password} onChange={set("password")} />
+          <PasswordInput autoComplete="new-password" minLength={8} required value={form.password} onChange={set("password")} />
+        </Field>
+        <Field label="Confirm password">
+          <PasswordInput autoComplete="new-password" minLength={8} required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <Field label="PIN" hint="The 8-character PIN your admin gave you.">
           <Input
