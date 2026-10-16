@@ -8,6 +8,7 @@
 // POST { action: "url", key | file_id } -> { url }   short-lived download link (signed in)
 // POST { action: "delete", file_id }    -> { ok }    (signed in)
 // POST { action: "public_form", slug }  -> { logo, banner }   branding for a public lead form (no sign-in)
+// POST { action: "health" }             -> { ok, bucket }  checks the R2 keys can reach the bucket (no data returned)
 //
 // Secrets (Supabase > Edge Functions > Secrets): R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
 // R2_SECRET_ACCESS_KEY, R2_BUCKET.
@@ -188,6 +189,11 @@ Deno.serve(async (req) => {
         return await remove(req, body);
       case "public_form":
         return await publicForm(body);
+      case "health": {
+        const r = await r2.fetch(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}?list-type=2&max-keys=1`);
+        await r.body?.cancel();
+        return reply(r.ok ? 200 : 502, { ok: r.ok, bucket: r.ok ? "reachable" : `R2 said ${r.status}` });
+      }
       default:
         return fail(400, "Unknown action.");
     }
