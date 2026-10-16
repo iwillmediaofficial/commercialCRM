@@ -30,7 +30,7 @@ export default function Invoices() {
 function InvoiceList() {
   const { workspace, canWrite, isAdmin } = useWorkspace();
   const canEdit = canWrite && isAdmin;
-  const { settings, clients, loaded } = useBillingBasics();
+  const { settings, clients, loaded, reload: reloadBasics } = useBillingBasics();
   const [rows, setRows] = useState<InvoiceRow[] | null>(null);
   const [collected, setCollected] = useState(0);
   const [error, setError] = useState("");
@@ -200,12 +200,16 @@ function InvoiceList() {
           onSaved={(id) => {
             setCreating(false);
             load();
+            reloadBasics();
             setViewing(id);
           }}
         />
       )}
       {viewing && (
-        <InvoiceView invoiceId={viewing} settings={settings} clients={clients} onClose={() => setViewing(null)} onChanged={load} />
+        <InvoiceView invoiceId={viewing} settings={settings} clients={clients} onClose={() => setViewing(null)} onChanged={() => {
+          load();
+          reloadBasics();
+        }} />
       )}
     </>
   );

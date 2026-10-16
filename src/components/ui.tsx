@@ -1,4 +1,4 @@
-import { useEffect, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export function Button({ className = "", variant = "primary", ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" }) {
@@ -112,24 +112,34 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 // Escape closes only the top-most open Modal or Drawer.
-const escapeStack: (() => void)[] = [];
+// Each open layer pushes a stable token once; onClose lives in a ref so
+// re-renders with a new inline arrow never re-order the stack.
+const escapeStack: { current: () => void }[] = [];
 function useEscape(onClose: () => void) {
+  const ref = useRef(onClose);
   useEffect(() => {
-    escapeStack.push(onClose);
-    const h = (e: KeyboardEvent) => e.key === "Escape" && escapeStack.at(-1) === onClose && onClose();
+    ref.current = onClose;
+  });
+  useEffect(() => {
+    const token = ref;
+    escapeStack.push(token);
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && escapeStack.at(-1) === token) token.current();
+    };
     window.addEventListener("keydown", h);
     return () => {
       window.removeEventListener("keydown", h);
-      escapeStack.splice(escapeStack.lastIndexOf(onClose), 1);
+      const i = escapeStack.lastIndexOf(token);
+      if (i >= 0) escapeStack.splice(i, 1);
     };
-  }, [onClose]);
+  }, []);
 }
 
 // Centred dialog. Render it only while open.
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEscape(onClose);
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-label={title}

@@ -36,7 +36,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
   const [adj, setAdj] = useState<Adjustment | "new" | null>(null);
 
   // Ledger to the later of the selected month and this month, so nothing recorded is hidden.
-  const until = [month, currentMonth(), ...uploads.map((u) => monthOf(u.upload_date)), ...adjustments.map((a) => monthOf(a.year_month))].sort().pop()!;
+  const until = [month, currentMonth(), ...uploads.map((u) => monthOf(u.upload_date)), ...collections.map((c) => monthOf(c.received_on)), ...adjustments.map((a) => monthOf(a.year_month))].sort().pop()!;
   const ledger = useMemo(
     () => clientLedger(Number(client.monthly_ad_target), uploads, collections, adjustments, until),
     [client.monthly_ad_target, uploads, collections, adjustments, until],

@@ -23,6 +23,8 @@ type Props = {
 
 export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me, onClose, onSaved }: Props) {
   const { workspace, isAdmin, canWrite, role } = useWorkspace();
+  // Set once a new item's row is inserted, so a retry after a later failure updates it instead of inserting again.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const isNew = !item;
   const fullEdit = canWrite && isAdmin; // admins edit everything
   const assignedToMe = !!me && assignees.includes(me);
@@ -55,7 +57,8 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
     if (fullEdit && !f.title.trim()) return setError("Please give the work item a title.");
     setBusy(true);
     const checklistJson = checklist as unknown as WorkItem["checklist"];
-    let id = item?.id;
+    let id = item?.id ?? createdId ?? undefined;
+    const inserting = isNew && !createdId;
     if (fullEdit) {
       const row = {
         title: f.title.trim(),
@@ -70,7 +73,7 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
         billable_amount: f.is_billable && f.billable_amount !== "" ? Number(f.billable_amount) : null,
         checklist: checklistJson,
       };
-      if (isNew) {
+      if (inserting) {
         const { data, error } = await supabase
           .from("work_items")
           .insert({ ...row, workspace_id: workspace.id, created_by: me })
@@ -78,8 +81,9 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
           .single();
         if (error) return fail(error.message);
         id = data.id;
+        setCreatedId(data.id);
       } else {
-        const { error } = await supabase.from("work_items").update(row).eq("workspace_id", workspace.id).eq("id", item.id);
+        const { error } = await supabase.from("work_items").update(row).eq("workspace_id", workspace.id).eq("id", id!);
         if (error) return fail(error.message);
       }
       // Sync assignees.
@@ -134,6 +138,8 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
     setInfo("");
     const { error } = await supabase.rpc("start_timer", { p_workspace_id: workspace.id, p_work_item_id: item.id });
     if (error) return setError(error.message);
+    // start_timer moves a backlog item to in progress; keep the form in step so Save doesn't undo it.
+    setF((x) => (x.status === "backlog" ? { ...x, status: "in_progress" } : x));
     setInfo("Timer started. You can stop it from the bar at the top.");
     announceTimerChange();
     onSaved();

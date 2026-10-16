@@ -38,7 +38,7 @@ function firstRunDate(from: string, day: number) {
 function RecurringPage() {
   const { workspace, canWrite, isAdmin } = useWorkspace();
   const canEdit = canWrite && isAdmin;
-  const { settings, clients, loaded } = useBillingBasics();
+  const { settings, clients, loaded, reload: reloadBasics } = useBillingBasics();
   const [bills, setBills] = useState<Bill[] | null>(null);
   const [unpaid, setUnpaid] = useState<InvoiceRow[]>([]);
   const [editing, setEditing] = useState<Bill | "new" | null>(null);
@@ -74,6 +74,7 @@ function RecurringPage() {
     const { data, error } = await supabase.rpc("run_recurring_billing", { p_workspace_id: workspace.id });
     setRunning(false);
     if (error) return setError(error.message);
+    reloadBasics();
     setNotice(data ? `Created ${data} invoice${data === 1 ? "" : "s"}. You can find them below and on the Invoices page.` : "Nothing is due yet. No new invoices were needed.");
     load();
   }
@@ -224,6 +225,8 @@ function BillForm({ bill, clients, settings, onClose, onSaved }: { bill: Bill | 
     is_active: bill?.is_active ?? true,
   });
   const [nextTouched, setNextTouched] = useState(!!bill);
+  // True once the user types a next bill date themselves; that date then wins over recalculation.
+  const [nextByHand, setNextByHand] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -232,6 +235,10 @@ function BillForm({ bill, clients, settings, onClose, onSaved }: { bill: Bill | 
     if (!nextTouched && f.start_date) {
       const day = Math.min(28, Math.max(1, Number(f.billing_day) || 1));
       f.next_run_date = firstRunDate(f.start_date, day);
+    } else if (bill && !nextByHand && p.billing_day !== undefined && p.billing_day !== form.billing_day && f.start_date) {
+      // Existing retainer: a new billing day moves the next bill to that day, from today or the start date.
+      const day = Math.min(28, Math.max(1, Number(f.billing_day) || 1));
+      f.next_run_date = firstRunDate(f.start_date > today ? f.start_date : today, day);
     }
     setForm(f);
   }
@@ -317,6 +324,7 @@ function BillForm({ bill, clients, settings, onClose, onSaved }: { bill: Bill | 
               value={form.next_run_date}
               onChange={(e) => {
                 setNextTouched(true);
+                setNextByHand(true);
                 setForm({ ...form, next_run_date: e.target.value });
               }}
             />

@@ -274,8 +274,10 @@ function AdFundsTab({ client }: { client: Client }) {
 
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const nextMonthStart = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
   const total = rows.reduce((s, r) => s + Number(r.amount), 0);
-  const thisMonth = rows.filter((r) => r.upload_date >= monthStart).reduce((s, r) => s + Number(r.amount), 0);
+  const thisMonth = rows.filter((r) => r.upload_date >= monthStart && r.upload_date < nextMonthStart).reduce((s, r) => s + Number(r.amount), 0);
   const group = (key: "platform" | "payer_type") => {
     const m = new Map<string, number>();
     for (const r of rows) m.set(r[key], (m.get(r[key]) ?? 0) + Number(r.amount));

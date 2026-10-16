@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
+import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
@@ -19,6 +20,7 @@ export default function Work() {
   const { session } = useAuth();
   const me = session?.user.id;
   const people = useMembers(workspace.id);
+  const [params, setParams] = useSearchParams();
 
   const [items, setItems] = useState<WorkItem[] | null>(null);
   const [assign, setAssign] = useState<Record<string, string[]>>({});
@@ -65,6 +67,18 @@ export default function Work() {
     window.addEventListener(TIMER_EVENT, load);
     return () => window.removeEventListener(TIMER_EVENT, load);
   }, [load]);
+
+  // Opening a work item from a notification link (?open=<work item id>).
+  const openId = params.get("open");
+  useEffect(() => {
+    if (!openId || !items) return;
+    const it = items.find((x) => x.id === openId);
+    if (it) setOpen(it);
+    setParams((p) => {
+      p.delete("open");
+      return p;
+    }, { replace: true });
+  }, [openId, items, setParams]);
 
   function changeView(v: View) {
     setView(v);

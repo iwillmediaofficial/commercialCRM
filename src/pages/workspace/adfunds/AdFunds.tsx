@@ -108,7 +108,11 @@ export default function AdFunds() {
   const owed = useCallback((clientId: string) => {
     const cl = clients.find((c) => c.id === clientId);
     if (!cl) return 0;
-    const all = [...(byClient.u.get(clientId) ?? []).map((u) => monthOf(u.upload_date)), currentMonth()].sort();
+    const all = [
+      ...(byClient.u.get(clientId) ?? []).map((u) => monthOf(u.upload_date)),
+      ...(byClient.c.get(clientId) ?? []).map((c) => monthOf(c.received_on)),
+      currentMonth(),
+    ].sort();
     const l = clientLedger(Number(cl.monthly_ad_target), byClient.u.get(clientId) ?? [], byClient.c.get(clientId) ?? [], byClient.a.get(clientId) ?? [], all[all.length - 1]);
     return l[l.length - 1]?.toCollect ?? 0;
   }, [clients, byClient]);

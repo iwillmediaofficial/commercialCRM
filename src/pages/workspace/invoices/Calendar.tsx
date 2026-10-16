@@ -88,7 +88,7 @@ function CalendarPage() {
   // Month totals (only days inside the month).
   const inMonth = (d: string) => d.startsWith(month.slice(0, 7));
   const monthInv = (invoices ?? []).filter((i) => inMonth(i.due_date!));
-  const dueTotal = monthInv.reduce((s, i) => s + Number(i.total ?? 0), 0);
+  const dueTotal = monthInv.filter((i) => i.status !== "draft").reduce((s, i) => s + Number(i.total ?? 0), 0);
   const overdueTotal = monthInv.filter((i) => i.display_status === "overdue").reduce((s, i) => s + Number(i.balance_due ?? 0), 0);
   const collectedTotal = payments.filter((p) => inMonth(p.paid_on)).reduce((s, p) => s + Number(p.amount), 0);
 

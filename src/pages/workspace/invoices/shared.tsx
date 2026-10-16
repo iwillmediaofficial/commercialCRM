@@ -101,6 +101,9 @@ export function useBillingBasics() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // Bumped by reload() so the invoice-number hint picks up the new next number after a save.
+  const [version, setVersion] = useState(0);
+  const reload = useCallback(() => setVersion((v) => v + 1), []);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -120,8 +123,8 @@ export function useBillingBasics() {
     return () => {
       cancelled = true;
     };
-  }, [workspace.id]);
-  return { settings, clients, loaded };
+  }, [workspace.id, version]);
+  return { settings, clients, loaded, reload };
 }
 
 export function clientName(clients: Client[], id: string | null | undefined) {
@@ -187,6 +190,8 @@ export function InvoiceEditor({
   const [dueTouched, setDueTouched] = useState(false);
   const [items, setItems] = useState<ItemDraft[]>([blankItem()]);
   const [originalIds, setOriginalIds] = useState<string[]>([]);
+  // Set once a new invoice's header is inserted, so a retry after a line-item failure updates it instead of inserting a second invoice.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -260,7 +265,7 @@ export function InvoiceEditor({
       terms: form.terms.trim() || null,
       discount_amount: discount,
     };
-    let id = invoiceId;
+    let id = invoiceId ?? createdId;
     if (!id) {
       const { data, error } = await supabase
         .from("invoices")
@@ -278,6 +283,8 @@ export function InvoiceEditor({
         return setError(friendlyError(error?.message ?? "Could not save."));
       }
       id = data.id;
+      setCreatedId(data.id);
+      setStatus(markSent ? "pending" : "draft");
     } else {
       const { error } = await supabase
         .from("invoices")
@@ -573,6 +580,9 @@ export function InvoiceDocument({ invoice, items, client, settings }: { invoice:
   const intra =
     !invoice.place_of_supply || !settings?.state || invoice.place_of_supply.trim().toLowerCase() === settings.state.trim().toLowerCase();
   const taxTotal = Number(invoice.tax_total ?? 0);
+  // Split so the two halves always add back to the tax total.
+  const cgst = Math.floor((taxTotal * 100) / 2) / 100;
+  const sgst = round2(taxTotal - cgst);
   const addr = [settings?.address, [settings?.city, settings?.state, settings?.postal_code].filter(Boolean).join(", "), settings?.country]
     .filter(Boolean)
     .join("\n");
@@ -663,8 +673,8 @@ export function InvoiceDocument({ invoice, items, client, settings }: { invoice:
           <Row label="Subtotal" value={inr(invoice.subtotal)} />
           {intra ? (
             <>
-              <Row label="CGST" value={inr(taxTotal / 2)} />
-              <Row label="SGST" value={inr(taxTotal / 2)} />
+              <Row label="CGST" value={inr(cgst)} />
+              <Row label="SGST" value={inr(sgst)} />
             </>
           ) : (
             <Row label="IGST" value={inr(taxTotal)} />

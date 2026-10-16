@@ -8,6 +8,7 @@ import { date, downloadCsv, inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
 import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
+import { localDay } from "../time/timeUtil";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
 type View = "board" | "table";
@@ -18,7 +19,7 @@ function byPosition(a: Lead, b: Lead) {
 
 function followUpTone(d: string | null) {
   if (!d) return "";
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDay();
   return d < today ? "text-red-600" : d === today ? "text-amber-700" : "text-slate-500";
 }
 
