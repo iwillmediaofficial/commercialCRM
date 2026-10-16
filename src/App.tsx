@@ -16,6 +16,7 @@ import Team from "./pages/workspace/Team";
 import Billing from "./pages/workspace/Billing";
 import ComingSoon from "./pages/workspace/ComingSoon";
 import PublicForm from "./pages/PublicForm";
+import RouteError from "./components/RouteError";
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { loading, session } = useAuth();
@@ -25,35 +26,40 @@ function RequireAuth({ children }: { children: ReactNode }) {
 }
 
 const router = createBrowserRouter([
-  { path: "/login", element: <Login /> },
-  { path: "/signup", element: <Signup /> },
-  { path: "/reset", element: <Reset /> },
-  { path: "/f/:slug", element: <PublicForm /> },
-  { path: "/", element: <RequireAuth><Home /></RequireAuth> },
   {
-    path: "/admin",
-    element: <RequireAuth><AdminLayout /></RequireAuth>,
+    errorElement: <RouteError />,
     children: [
-      { index: true, element: <Companies /> },
-      { path: "renewals", element: <Renewals /> },
-      { path: "plans", element: <Plans /> },
+      { path: "/login", element: <Login /> },
+      { path: "/signup", element: <Signup /> },
+      { path: "/reset", element: <Reset /> },
+      { path: "/f/:slug", element: <PublicForm /> },
+      { path: "/", element: <RequireAuth><Home /></RequireAuth> },
+      {
+        path: "/admin",
+        element: <RequireAuth><AdminLayout /></RequireAuth>,
+        children: [
+          { index: true, element: <Companies /> },
+          { path: "renewals", element: <Renewals /> },
+          { path: "plans", element: <Plans /> },
+        ],
+      },
+      {
+        path: "/w/:slug",
+        element: <RequireAuth><WorkspaceLayout /></RequireAuth>,
+        children: [
+          { index: true, element: <Dashboard /> },
+          { path: "leads", element: <ComingSoon title="Leads" /> },
+          { path: "clients", element: <ComingSoon title="Clients" /> },
+          { path: "work", element: <ComingSoon title="Work" /> },
+          { path: "invoices", element: <ComingSoon title="Invoices" /> },
+          { path: "ad-funds", element: <ComingSoon title="Ad funds" /> },
+          { path: "team", element: <Team /> },
+          { path: "billing", element: <Billing /> },
+        ],
+      },
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
-  {
-    path: "/w/:slug",
-    element: <RequireAuth><WorkspaceLayout /></RequireAuth>,
-    children: [
-      { index: true, element: <Dashboard /> },
-      { path: "leads", element: <ComingSoon title="Leads" /> },
-      { path: "clients", element: <ComingSoon title="Clients" /> },
-      { path: "work", element: <ComingSoon title="Work" /> },
-      { path: "invoices", element: <ComingSoon title="Invoices" /> },
-      { path: "ad-funds", element: <ComingSoon title="Ad funds" /> },
-      { path: "team", element: <Team /> },
-      { path: "billing", element: <Billing /> },
-    ],
-  },
-  { path: "*", element: <Navigate to="/" replace /> },
 ]);
 
 export default function App() {

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, type MemberRole } from "./supabase";
 
@@ -24,9 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [memberships, setMemberships] = useState<Membership[]>([]);
+  const loadedUser = useRef<string | null>(null);
 
   const load = useCallback(async (s: Session | null) => {
     setSession(s);
+    // A different person signed in: hold the screens until their companies load.
+    // Token refreshes for the same person reload quietly.
+    if (s && s.user.id !== loadedUser.current) setLoading(true);
+    loadedUser.current = s?.user.id ?? null;
     if (!s) {
       setIsPlatformAdmin(false);
       setMemberships([]);

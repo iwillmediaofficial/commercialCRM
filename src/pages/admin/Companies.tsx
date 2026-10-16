@@ -146,7 +146,7 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
 
 function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated: () => void }) {
   const [form, setForm] = useState({ name: "", slug: "", plan_id: "", owner_name: "", owner_email: "", owner_phone: "", trial_days: "" });
-  const [result, setResult] = useState<{ owner_pin: string } | null>(null);
+  const [result, setResult] = useState<{ owner_pin: { pin: string; expires_at: string } } | null>(null);
   const [error, setError] = useState("");
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
   const [slugTouched, setSlugTouched] = useState(false);
@@ -172,7 +172,7 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
         /duplicate|unique/i.test(error.message) ? "That web address is already taken. Choose another." : error.message,
       );
     }
-    setResult(data as { owner_pin: string });
+    setResult(data as { owner_pin: { pin: string; expires_at: string } });
     onCreated();
   }
 
@@ -180,7 +180,7 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
     return (
       <div className="mb-6 space-y-2">
         <Alert tone="success">Company created. Give this PIN to the owner. They sign up at /signup with it.</Alert>
-        <PinBox pin={result.owner_pin} />
+        <PinBox pin={result.owner_pin.pin} expires={result.owner_pin.expires_at} />
       </div>
     );
   }
