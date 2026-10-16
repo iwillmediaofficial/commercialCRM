@@ -6,12 +6,13 @@ import { Alert, Button, Field, Input } from "../../components/ui";
 import { AuthShell } from "./AuthShell";
 
 // Sign-up needs a PIN from the Super Admin (company owners) or a company admin
-// (staff). No emails are sent; the account is ready as soon as this succeeds.
+// (staff). Name and phone come with the PIN from what the admin entered, so
+// people only give email, password and PIN. No emails are sent.
 export default function Signup() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const asPlatformAdmin = params.get("as") === "platform";
-  const [form, setForm] = useState({ full_name: "", phone: "", email: "", password: "", pin: params.get("pin") ?? "" });
+  const [form, setForm] = useState({ email: "", password: "", pin: params.get("pin") ?? "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
@@ -37,16 +38,10 @@ export default function Signup() {
     >
       <form className="space-y-4" onSubmit={submit}>
         {error && <Alert>{error}</Alert>}
-        <Field label="Full name">
-          <Input required value={form.full_name} onChange={set("full_name")} />
-        </Field>
-        <Field label="Phone">
-          <Input type="tel" value={form.phone} onChange={set("phone")} />
-        </Field>
-        <Field label="Email">
+        <Field label="Email" hint="The email your admin registered for you.">
           <Input type="email" autoComplete="email" required value={form.email} onChange={set("email")} />
         </Field>
-        <Field label="Password" hint="At least 8 characters. If this email already has an account, use that password.">
+        <Field label="New password" hint="At least 8 characters. If this email already has an account, use that password.">
           <Input type="password" autoComplete="new-password" minLength={8} required value={form.password} onChange={set("password")} />
         </Field>
         <Field label="PIN" hint="The 8-character PIN your admin gave you.">

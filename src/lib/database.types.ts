@@ -19,8 +19,10 @@ export type Database = {
           created_at: string
           email: string | null
           expires_at: string
+          full_name: string | null
           id: string
           issued_by: string | null
+          phone: string | null
           pin_hash: string
           pin_hint: string
           purpose: Database["public"]["Enums"]["pin_purpose"]
@@ -35,8 +37,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           expires_at?: string
+          full_name?: string | null
           id?: string
           issued_by?: string | null
+          phone?: string | null
           pin_hash: string
           pin_hint: string
           purpose?: Database["public"]["Enums"]["pin_purpose"]
@@ -51,8 +55,10 @@ export type Database = {
           created_at?: string
           email?: string | null
           expires_at?: string
+          full_name?: string | null
           id?: string
           issued_by?: string | null
+          phone?: string | null
           pin_hash?: string
           pin_hint?: string
           purpose?: Database["public"]["Enums"]["pin_purpose"]
@@ -1769,6 +1775,19 @@ export type Database = {
       is_workspace_admin: { Args: { ws: string }; Returns: boolean }
       is_workspace_member: { Args: { ws: string }; Returns: boolean }
       issue_access_pin: {
+        Args: {
+          p_email?: string
+          p_full_name?: string
+          p_phone?: string
+          p_purpose: Database["public"]["Enums"]["pin_purpose"]
+          p_role?: Database["public"]["Enums"]["member_role"]
+          p_target_user_id?: string
+          p_valid_days?: number
+          p_workspace_id?: string
+        }
+        Returns: Json
+      }
+      issue_access_pin_retired: {
         Args: {
           p_email?: string
           p_purpose: Database["public"]["Enums"]["pin_purpose"]

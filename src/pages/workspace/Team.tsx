@@ -6,8 +6,8 @@ import { Alert, Button, Card, Field, Input, PinBox, Select } from "../../compone
 
 type Member = Tables<"workspace_members"> & { profile?: Tables<"profiles"> };
 // pin_hash is never readable, so list the columns we may see.
-const PIN_COLUMNS = "id, purpose, role, email, target_user_id, pin_hint, expires_at, used_at, revoked_at, created_at";
-type PinRow = Pick<Tables<"access_pins">, "id" | "purpose" | "role" | "email" | "target_user_id" | "pin_hint" | "expires_at" | "used_at" | "revoked_at" | "created_at">;
+const PIN_COLUMNS = "id, purpose, role, email, full_name, target_user_id, pin_hint, expires_at, used_at, revoked_at, created_at";
+type PinRow = Pick<Tables<"access_pins">, "id" | "purpose" | "role" | "email" | "full_name" | "target_user_id" | "pin_hint" | "expires_at" | "used_at" | "revoked_at" | "created_at">;
 
 export default function Team() {
   const { workspace, plan, canWrite, isAdmin } = useWorkspace();
@@ -16,7 +16,7 @@ export default function Team() {
   const [pins, setPins] = useState<PinRow[]>([]);
   const [newPin, setNewPin] = useState<{ pin: string; expires_at: string; label: string } | null>(null);
   const [role, setRole] = useState<MemberRole>("staff");
-  const [email, setEmail] = useState("");
+  const [invite, setInvite] = useState({ full_name: "", phone: "", email: "" });
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -46,15 +46,17 @@ export default function Team() {
       p_purpose: purpose,
       p_workspace_id: workspace.id,
       p_role: purpose === "signup" ? role : undefined,
-      p_email: purpose === "signup" ? email || undefined : undefined,
+      p_email: purpose === "signup" ? invite.email : undefined,
+      p_full_name: purpose === "signup" ? invite.full_name : undefined,
+      p_phone: purpose === "signup" ? invite.phone || undefined : undefined,
       p_target_user_id: target?.user_id,
     });
     if (error) return setError(error.message);
     const label = purpose === "signup"
-      ? `Sign-up PIN for a new ${role}${email ? ` (${email})` : ""}`
+      ? `Sign-up PIN for ${invite.full_name} (${role}, ${invite.email})`
       : `Password reset PIN for ${target?.profile?.full_name || target?.profile?.email}`;
     setNewPin({ ...(data as { pin: string; expires_at: string }), label });
-    setEmail("");
+    setInvite({ full_name: "", phone: "", email: "" });
     load();
   }
 
@@ -115,18 +117,30 @@ export default function Team() {
 
       {isAdmin && canWrite && (
         <Card title="Invite someone">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <form
+            className="grid gap-3 sm:grid-cols-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              issue("signup");
+            }}
+          >
+            <Field label="Full name">
+              <Input required value={invite.full_name} onChange={(e) => setInvite({ ...invite, full_name: e.target.value })} />
+            </Field>
+            <Field label="Phone">
+              <Input type="tel" value={invite.phone} onChange={(e) => setInvite({ ...invite, phone: e.target.value })} />
+            </Field>
+            <Field label="Email" hint="They sign up with this email; the PIN works only for it.">
+              <Input type="email" required value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
+            </Field>
             <Field label="Role">
               <Select value={role} onChange={(e) => setRole(e.target.value as MemberRole)}>
                 <option value="staff">Staff</option>
                 <option value="admin">Admin</option>
               </Select>
             </Field>
-            <Field label="Their email (optional)" hint="Locks the PIN to this email.">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </Field>
-            <div className="flex items-end"><Button onClick={() => issue("signup")}>Create sign-up PIN</Button></div>
-          </div>
+            <div className="flex items-end sm:col-span-2"><Button>Create sign-up PIN</Button></div>
+          </form>
         </Card>
       )}
 
@@ -137,7 +151,7 @@ export default function Team() {
               <li key={p.id} className="flex items-center justify-between py-2">
                 <span>
                   ••••••{p.pin_hint} · {p.purpose === "reset" ? "password reset" : `${p.role} sign-up`}
-                  {p.email && ` · ${p.email}`} · until {new Date(p.expires_at).toLocaleDateString()}
+                  {p.full_name && ` · ${p.full_name}`}{p.email && ` · ${p.email}`} · until {new Date(p.expires_at).toLocaleDateString()}
                 </span>
                 {isAdmin && <Button variant="danger" onClick={() => revoke(p.id)}>Revoke</Button>}
               </li>

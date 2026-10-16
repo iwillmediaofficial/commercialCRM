@@ -107,7 +107,14 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
       "issue_access_pin",
       ownerId
         ? { p_purpose: "reset", p_workspace_id: w.id, p_target_user_id: ownerId }
-        : { p_purpose: "signup", p_workspace_id: w.id, p_role: "owner", p_email: w.owner_email ?? undefined },
+        : {
+            p_purpose: "signup",
+            p_workspace_id: w.id,
+            p_role: "owner",
+            p_email: w.owner_email ?? undefined,
+            p_full_name: w.owner_name ?? undefined,
+            p_phone: w.owner_phone ?? undefined,
+          },
     );
     if (error) return setError(error.message);
     const label = ownerId ? "Owner password reset PIN. They enter it at /reset." : "Owner sign-up PIN. They enter it at /signup.";
@@ -238,8 +245,8 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
         <Input type="number" min={0} value={form.trial_days} onChange={set("trial_days")} />
       </Field>
       <Field label="Owner name"><Input required value={form.owner_name} onChange={set("owner_name")} /></Field>
-      <Field label="Owner email" hint="The PIN will only work with this email.">
-        <Input type="email" value={form.owner_email} onChange={set("owner_email")} />
+      <Field label="Owner email" hint="The owner signs up with this email; the PIN works only for it.">
+        <Input type="email" required value={form.owner_email} onChange={set("owner_email")} />
       </Field>
       <Field label="Owner phone"><Input value={form.owner_phone} onChange={set("owner_phone")} /></Field>
       <div className="flex items-end"><Button>Create company and owner PIN</Button></div>

@@ -23,8 +23,6 @@ export function signUpWithPin(input: {
   email: string;
   password: string;
   pin: string;
-  full_name: string;
-  phone?: string;
   purpose?: "signup" | "platform_admin";
 }) {
   return call({ action: "signup", ...input });
