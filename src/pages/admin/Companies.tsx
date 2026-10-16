@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { StatusBadge } from "../../lib/status";
 import { MODES, PERIODS, date, daysLeft, type BillingPeriod, type PaymentMode } from "../../lib/format";
-import { Alert, Button, Card, Field, Input, PinBox, Select } from "../../components/ui";
+import { Alert, Badge, Button, Card, Field, Input, PinBox, Select } from "../../components/ui";
 
 type Row = Tables<"workspaces"> & {
   plan: Pick<Tables<"plans">, "name" | "staff_limit"> | null;
@@ -22,7 +22,7 @@ export default function Companies() {
   const [rows, setRows] = useState<Row[]>([]);
   const [plans, setPlans] = useState<Tables<"plans">[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showNew, setShowNew] = useState(false);
+  const [showNew, setShowNew] = useState<"" | "company" | "demo">("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -53,13 +53,15 @@ export default function Companies() {
       (!statusFilter || w.status === statusFilter) &&
       (!q || [w.name, w.slug, w.owner_name, w.owner_email, w.owner_phone].some((v) => v?.toLowerCase().includes(q))),
   );
-  const count = (s: string) => rows.filter((w) => w.status === s).length;
+  // Demo companies are left out of the counts.
+  const real = rows.filter((w) => !w.is_demo);
+  const count = (s: string) => real.filter((w) => w.status === s).length;
 
   return (
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {[
-          ["", "All companies", rows.length],
+          ["", "All companies", real.length],
           ["active", "Active", count("active")],
           ["trial", "On trial", count("trial")],
           ["grace", "In grace", count("grace")],
@@ -76,8 +78,19 @@ export default function Companies() {
         ))}
       </div>
 
-      <Card title="Companies" actions={<Button onClick={() => setShowNew(!showNew)}>{showNew ? "Close" : "Add company"}</Button>}>
-        {showNew && <NewCompany plans={plans} onCreated={load} />}
+      <Card
+        title="Companies"
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setShowNew(showNew === "demo" ? "" : "demo")}>
+              {showNew === "demo" ? "Close" : "Create demo company"}
+            </Button>
+            <Button onClick={() => setShowNew(showNew === "company" ? "" : "company")}>{showNew === "company" ? "Close" : "Add company"}</Button>
+          </div>
+        }
+      >
+        {showNew === "company" && <NewCompany plans={plans} onCreated={load} />}
+        {showNew === "demo" && <NewDemo onCreated={load} />}
         <Input className="mb-3 sm:max-w-xs" placeholder="Search name, owner, email or phone" value={search} onChange={(e) => setSearch(e.target.value)} />
         {loading ? (
           <p className="text-sm text-slate-500">Loading…</p>
@@ -124,7 +137,10 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
     <>
       <tr className="align-top">
         <td className="py-2">
-          <div className="font-medium">{w.name}</div>
+          <div className="font-medium">
+            {w.name}
+            {w.is_demo && <span className="ml-2"><Badge tone="bg-amber-100 text-amber-800">Demo</Badge></span>}
+          </div>
           <div className="text-xs text-slate-500">/w/{w.slug}</div>
         </td>
         <td className="py-2">
@@ -477,6 +493,61 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
       </Field>
       <Field label="Owner phone"><Input value={form.owner_phone} onChange={set("owner_phone")} /></Field>
       <div className="flex items-end"><Button>Create company and owner PIN</Button></div>
+      {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
+    </form>
+  );
+}
+
+// A ready-made company full of sample data, for showing the app to prospects.
+function NewDemo({ onCreated }: { onCreated: () => void }) {
+  const [form, setForm] = useState({ name: "", owner_name: "", owner_email: "" });
+  const [result, setResult] = useState<{ slug: string; owner_pin: { pin: string; expires_at: string } } | null>(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    const { data, error } = await supabase.rpc("admin_create_demo_workspace", {
+      p_name: form.name.trim() || undefined,
+      p_owner_name: form.owner_name.trim() || undefined,
+      p_owner_email: form.owner_email.trim().toLowerCase() || undefined,
+    });
+    setBusy(false);
+    if (error) return setError(error.message);
+    setResult(data as { slug: string; owner_pin: { pin: string; expires_at: string } });
+    onCreated();
+  }
+
+  if (result) {
+    return (
+      <div className="mb-6 space-y-2 border-b border-slate-200 pb-6">
+        <Alert tone="success">
+          Demo company created at /w/{result.slug}. Sign up at /signup with {form.owner_email.trim() ? "that email" : "the demo email"} and this PIN to get
+          a login you can share with prospects. The demo has sample clients, leads, tasks, invoices and ad funds, and is active for a year.
+        </Alert>
+        <PinBox pin={result.owner_pin.pin} expires={result.owner_pin.expires_at} />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-6 grid gap-4 border-b border-slate-200 pb-6 sm:grid-cols-2">
+      <p className="text-sm text-slate-600 sm:col-span-2">
+        Creates a company filled with sample data, active for a year. It's marked Demo and left out of your company counts.
+      </p>
+      <Field label="Company name" hint="Leave empty for a ready-made name.">
+        <Input value={form.name} onChange={set("name")} />
+      </Field>
+      <Field label="Demo login email" hint="Optional. You sign up with this email to get the demo login.">
+        <Input type="email" value={form.owner_email} onChange={set("owner_email")} placeholder="demo@yourdomain.com" />
+      </Field>
+      <Field label="Demo owner name" hint="Optional.">
+        <Input value={form.owner_name} onChange={set("owner_name")} />
+      </Field>
+      <div className="flex items-end"><Button disabled={busy}>{busy ? "Creating…" : "Create demo company"}</Button></div>
       {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
     </form>
   );

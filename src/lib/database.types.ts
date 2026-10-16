@@ -329,6 +329,53 @@ export type Database = {
           },
         ]
       }
+      app_errors: {
+        Row: {
+          app_version: string | null
+          created_at: string
+          id: number
+          message: string
+          source: string
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+          user_id: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          message: string
+          source?: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string
+          id?: never
+          message?: string
+          source?: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "app_errors_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           ad_platforms: string[]
@@ -952,9 +999,21 @@ export type Database = {
           bank_ifsc: string | null
           bank_name: string | null
           grace_days: number
+          gst_rate: number
           id: boolean
+          legal_updated_on: string
           payment_note: string | null
+          product_name: string
           reminder_days: number
+          sac_code: string
+          seller_address: string | null
+          seller_gstin: string | null
+          seller_legal_name: string | null
+          seller_pan: string | null
+          seller_state: string | null
+          sub_invoice_prefix: string
+          support_email: string | null
+          support_phone: string | null
           trial_days: number
           updated_at: string
           upi_id: string | null
@@ -966,9 +1025,21 @@ export type Database = {
           bank_ifsc?: string | null
           bank_name?: string | null
           grace_days?: number
+          gst_rate?: number
           id?: boolean
+          legal_updated_on?: string
           payment_note?: string | null
+          product_name?: string
           reminder_days?: number
+          sac_code?: string
+          seller_address?: string | null
+          seller_gstin?: string | null
+          seller_legal_name?: string | null
+          seller_pan?: string | null
+          seller_state?: string | null
+          sub_invoice_prefix?: string
+          support_email?: string | null
+          support_phone?: string | null
           trial_days?: number
           updated_at?: string
           upi_id?: string | null
@@ -980,9 +1051,21 @@ export type Database = {
           bank_ifsc?: string | null
           bank_name?: string | null
           grace_days?: number
+          gst_rate?: number
           id?: boolean
+          legal_updated_on?: string
           payment_note?: string | null
+          product_name?: string
           reminder_days?: number
+          sac_code?: string
+          seller_address?: string | null
+          seller_gstin?: string | null
+          seller_legal_name?: string | null
+          seller_pan?: string | null
+          seller_state?: string | null
+          sub_invoice_prefix?: string
+          support_email?: string | null
+          support_phone?: string | null
           trial_days?: number
           updated_at?: string
           upi_id?: string | null
@@ -1181,6 +1264,8 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          invoice: Json | null
+          invoice_no: string | null
           paid_on: string
           payment_mode: Database["public"]["Enums"]["payment_mode"]
           period: Database["public"]["Enums"]["billing_period"] | null
@@ -1196,6 +1281,8 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          invoice?: Json | null
+          invoice_no?: string | null
           paid_on?: string
           payment_mode: Database["public"]["Enums"]["payment_mode"]
           period?: Database["public"]["Enums"]["billing_period"] | null
@@ -1211,6 +1298,8 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          invoice?: Json | null
+          invoice_no?: string | null
           paid_on?: string
           payment_mode?: Database["public"]["Enums"]["payment_mode"]
           period?: Database["public"]["Enums"]["billing_period"] | null
@@ -1556,6 +1645,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          is_demo: boolean
           logo_path: string | null
           name: string
           notes: string | null
@@ -1572,6 +1662,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_demo?: boolean
           logo_path?: string | null
           name: string
           notes?: string | null
@@ -1588,6 +1679,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          is_demo?: boolean
           logo_path?: string | null
           name?: string
           notes?: string | null
@@ -1730,6 +1822,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_demo_workspace: {
+        Args: { p_name?: string; p_owner_email?: string; p_owner_name?: string }
+        Returns: Json
+      }
       admin_create_workspace: {
         Args: {
           p_name: string
@@ -1824,6 +1920,17 @@ export type Database = {
         }
         Returns: Json
       }
+      log_client_error: {
+        Args: {
+          p_app_version?: string
+          p_message: string
+          p_stack?: string
+          p_url?: string
+          p_user_agent?: string
+          p_workspace_id?: string
+        }
+        Returns: undefined
+      }
       member_role: {
         Args: { ws: string }
         Returns: Database["public"]["Enums"]["member_role"]
@@ -1848,6 +1955,7 @@ export type Database = {
         }
         Returns: Json
       }
+      public_site_info: { Args: never; Returns: Json }
       reject_renewal: {
         Args: { p_reason: string; p_request_id: string }
         Returns: undefined
@@ -1885,6 +1993,10 @@ export type Database = {
       }
       workspace_is_active: { Args: { ws: string }; Returns: boolean }
       workspace_status: { Args: { ws: string }; Returns: string }
+      workspace_storage_bytes: {
+        Args: { p_workspace_id: string }
+        Returns: number
+      }
     }
     Enums: {
       billing_period: "monthly" | "quarterly" | "half_yearly" | "yearly"

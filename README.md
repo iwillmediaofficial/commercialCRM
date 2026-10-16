@@ -12,7 +12,7 @@ staff PINs, and password resets work the same way.
 
 - React 19, TypeScript, Vite, Tailwind CSS, React Router
 - Supabase (Postgres, Auth, Row Level Security, Edge Functions, pg_cron), Mumbai region
-- Cloudflare Pages for hosting, Cloudflare R2 for files (coming)
+- Cloudflare Pages for hosting, Cloudflare R2 for files (through the `files` Edge Function)
 
 ## Run it
 
@@ -26,11 +26,31 @@ npm run dev
 
 ## Deploy to Cloudflare Pages
 
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (values in `.env.example`)
+1. Cloudflare dashboard > Workers & Pages > Create > Pages > Connect to Git, pick
+   `iwillmediaofficial/commercialCRM`.
+2. Production branch `main`. Framework preset: None. Build command `npm run build`.
+   Output directory `dist`.
+3. Environment variables (Production and Preview): `VITE_SUPABASE_URL` and
+   `VITE_SUPABASE_PUBLISHABLE_KEY` (the same values as `.env.local`; both are public).
+   Optionally `NODE_VERSION` = `22`.
+4. Save and deploy. The site is at `https://<project>.pages.dev`. A custom domain can
+   be added later under the project's Custom domains tab.
+5. Supabase > Authentication > URL Configuration: set Site URL to the pages.dev address
+   (no emails are sent, but it keeps auth redirects correct).
 
 `public/_redirects` sends every path to the app so links like `/w/acme/team` work.
+`public/_headers` sets security headers (CSP allows only Supabase and R2) and long
+caching for hashed build files.
+
+## Launch checklist
+
+- Supabase Pro plan: daily backups (7 days kept) and no pausing. Point-in-time
+  recovery is an optional add-on.
+- Supabase > Authentication > Leaked password protection: turn on.
+- /admin/settings: product name, support contact, and your business and GST details
+  for subscription invoices.
+- /admin/errors: crashes reported by browsers. Edge Function errors are under
+  Supabase > Edge Functions > Logs.
 
 ## Layout
 

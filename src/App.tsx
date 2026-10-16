@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { Spinner } from "./components/ui";
@@ -6,29 +6,43 @@ import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import Reset from "./pages/auth/Reset";
 import Home from "./pages/Home";
-import AdminLayout from "./pages/admin/AdminLayout";
-import Companies from "./pages/admin/Companies";
-import Renewals from "./pages/admin/Renewals";
-import Plans from "./pages/admin/Plans";
-import Payments from "./pages/admin/Payments";
-import AuditLog from "./pages/admin/AuditLog";
-import AdminSettings from "./pages/admin/Settings";
-import WorkspaceLayout from "./pages/workspace/WorkspaceLayout";
-import Dashboard from "./pages/workspace/Dashboard";
-import Team from "./pages/workspace/Team";
-import Billing from "./pages/workspace/Billing";
-import Leads from "./pages/workspace/leads/Leads";
-import LeadForms from "./pages/workspace/leads/LeadForms";
-import Clients from "./pages/workspace/clients/Clients";
-import Work from "./pages/workspace/work/Work";
-import Timesheets from "./pages/workspace/time/Timesheets";
-import Invoices from "./pages/workspace/invoices/Invoices";
-import Recurring from "./pages/workspace/invoices/Recurring";
-import BillingCalendar from "./pages/workspace/invoices/Calendar";
-import AdFunds from "./pages/workspace/adfunds/AdFunds";
-import WorkspaceSettings from "./pages/workspace/settings/Settings";
-import PublicForm from "./pages/PublicForm";
 import RouteError from "./components/RouteError";
+
+// Pages load on demand so the first visit downloads only what it shows.
+const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const Companies = lazy(() => import("./pages/admin/Companies"));
+const Renewals = lazy(() => import("./pages/admin/Renewals"));
+const Plans = lazy(() => import("./pages/admin/Plans"));
+const Payments = lazy(() => import("./pages/admin/Payments"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const WorkspaceLayout = lazy(() => import("./pages/workspace/WorkspaceLayout"));
+const Dashboard = lazy(() => import("./pages/workspace/Dashboard"));
+const Team = lazy(() => import("./pages/workspace/Team"));
+const Billing = lazy(() => import("./pages/workspace/Billing"));
+const Leads = lazy(() => import("./pages/workspace/leads/Leads"));
+const LeadForms = lazy(() => import("./pages/workspace/leads/LeadForms"));
+const Clients = lazy(() => import("./pages/workspace/clients/Clients"));
+const Work = lazy(() => import("./pages/workspace/work/Work"));
+const Timesheets = lazy(() => import("./pages/workspace/time/Timesheets"));
+const Invoices = lazy(() => import("./pages/workspace/invoices/Invoices"));
+const Recurring = lazy(() => import("./pages/workspace/invoices/Recurring"));
+const BillingCalendar = lazy(() => import("./pages/workspace/invoices/Calendar"));
+const AdFunds = lazy(() => import("./pages/workspace/adfunds/AdFunds"));
+const WorkspaceSettings = lazy(() => import("./pages/workspace/settings/Settings"));
+const PublicForm = lazy(() => import("./pages/PublicForm"));
+const Landing = lazy(() => import("./pages/public/Landing"));
+const Terms = lazy(() => import("./pages/public/Terms"));
+const Privacy = lazy(() => import("./pages/public/Privacy"));
+const SubscriptionInvoice = lazy(() => import("./pages/SubscriptionInvoice"));
+const Errors = lazy(() => import("./pages/admin/Errors"));
+
+// Signed-in people go to their company; visitors see the landing page.
+function Root() {
+  const { loading, session } = useAuth();
+  if (loading) return <Spinner />;
+  return session ? <Home /> : <Landing />;
+}
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { loading, session } = useAuth();
@@ -46,7 +60,10 @@ const router = createBrowserRouter([
       { path: "/reset", element: <Reset /> },
       { path: "/f/:slug", element: <PublicForm /> },
       { path: "/form/:slug", element: <PublicForm /> },
-      { path: "/", element: <RequireAuth><Home /></RequireAuth> },
+      { path: "/terms", element: <Terms /> },
+      { path: "/privacy", element: <Privacy /> },
+      { path: "/", element: <Root /> },
+      { path: "/invoice/subscription/:id", element: <RequireAuth><SubscriptionInvoice /></RequireAuth> },
       {
         path: "/admin",
         element: <RequireAuth><AdminLayout /></RequireAuth>,
@@ -57,6 +74,7 @@ const router = createBrowserRouter([
           { path: "plans", element: <Plans /> },
           { path: "audit", element: <AuditLog /> },
           { path: "settings", element: <AdminSettings /> },
+          { path: "errors", element: <Errors /> },
         ],
       },
       {
@@ -86,7 +104,9 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <Suspense fallback={<Spinner />}>
+        <RouterProvider router={router} />
+      </Suspense>
     </AuthProvider>
   );
 }

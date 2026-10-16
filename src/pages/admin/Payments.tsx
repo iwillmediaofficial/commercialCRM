@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { MODE_LABEL, PERIOD_LABEL, date, downloadCsv, inr } from "../../lib/format";
 import { Card, Input } from "../../components/ui";
@@ -42,9 +43,10 @@ export default function Payments() {
   function exportCsv() {
     downloadCsv(
       `subscription-payments${from ? `-from-${from}` : ""}${to ? `-to-${to}` : ""}.csv`,
-      ["Paid on", "Company", "Plan", "Period", "Amount (INR)", "Paid by", "Reference", "Valid from", "Valid until", "Source"],
+      ["Paid on", "Invoice no", "Company", "Plan", "Period", "Amount (INR)", "Paid by", "Reference", "Valid from", "Valid until", "Source"],
       shown.map((r) => [
         r.paid_on,
+        r.invoice_no,
         r.workspace?.name,
         r.plan?.name,
         r.period ? PERIOD_LABEL[r.period] : "",
@@ -90,7 +92,7 @@ export default function Payments() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-slate-500">
-                <tr><th className="py-2">Paid on</th><th>Company</th><th>Plan</th><th>Period</th><th className="text-right">Amount</th><th>Paid by</th><th>Covers</th></tr>
+                <tr><th className="py-2">Paid on</th><th>Company</th><th>Plan</th><th>Period</th><th className="text-right">Amount</th><th>Paid by</th><th>Covers</th><th>Invoice</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {shown.map((r) => (
@@ -102,6 +104,13 @@ export default function Payments() {
                     <td className="text-right">{inr(r.amount)}</td>
                     <td>{MODE_LABEL[r.payment_mode]}{r.reference_no && <div className="text-xs text-slate-500">UTR {r.reference_no}</div>}</td>
                     <td className="text-xs text-slate-500">{date(r.valid_from)} to {date(r.valid_until)}</td>
+                    <td className="whitespace-nowrap">
+                      {r.invoice_no ? (
+                        <Link className="text-indigo-600 hover:underline" to={`/invoice/subscription/${r.id}`}>{r.invoice_no}</Link>
+                      ) : (
+                        <span className="text-xs text-slate-400">None</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { useWorkspace } from "../../lib/workspace";
 import { StatusBadge } from "../../lib/status";
 import { MAX_FILE_MB, uploadFile } from "../../lib/files";
+import { PERIOD_LABEL, date, inr } from "../../lib/format";
 import { Alert, Button, Card, Field, Input, Select } from "../../components/ui";
 
 const PERIODS = [
@@ -14,6 +16,7 @@ const PERIODS = [
 ] as const;
 type Period = (typeof PERIODS)[number][0];
 type PaymentMode = Tables<"renewal_requests">["payment_mode"];
+type SubPayment = Tables<"subscription_payments"> & { plan: { name: string } | null };
 
 // Subscription status, how to pay, and a form to tell the Super Admin you paid.
 export default function Billing() {
@@ -21,6 +24,7 @@ export default function Billing() {
   const { session } = useAuth();
   const [settings, setSettings] = useState<Tables<"platform_settings"> | null>(null);
   const [requests, setRequests] = useState<Tables<"renewal_requests">[]>([]);
+  const [payments, setPayments] = useState<SubPayment[]>([]);
   const available = PERIODS.filter(([, , k]) => plan?.[k] != null);
   const [period, setPeriod] = useState<Period | "">("");
   const [mode, setMode] = useState<PaymentMode>("upi");
@@ -32,13 +36,23 @@ export default function Billing() {
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(async () => {
-    const [{ data: s }, { data: r }] = await Promise.all([
+    const [{ data: s }, { data: r }, { data: p }] = await Promise.all([
       supabase.from("platform_settings").select("*").maybeSingle(),
       supabase.from("renewal_requests").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
+      // Only owners and admins can read these; others get an empty list.
+      isAdmin
+        ? supabase
+            .from("subscription_payments")
+            .select("*, plan:plans(name)")
+            .eq("workspace_id", workspace.id)
+            .order("paid_on", { ascending: false })
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] }),
     ]);
     setSettings(s);
     setRequests(r ?? []);
-  }, [workspace.id]);
+    setPayments((p ?? []) as SubPayment[]);
+  }, [workspace.id, isAdmin]);
   useEffect(() => {
     load();
   }, [load]);
@@ -157,6 +171,42 @@ export default function Billing() {
         )}
         {message && <div className="mt-3"><Alert tone={message.tone}>{message.text}</Alert></div>}
       </Card>
+
+      {isAdmin && (
+        <Card title="Payments and invoices">
+          {payments.length === 0 ? (
+            <p className="text-sm text-slate-500">No payments yet. Once a payment is confirmed, its invoice shows up here.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-slate-500">
+                  <tr><th className="py-2">Paid on</th><th>Plan</th><th>Period</th><th className="text-right">Amount</th><th className="pl-4">Invoice</th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((p) => (
+                    <tr key={p.id}>
+                      <td className="py-2">{date(p.paid_on)}</td>
+                      <td>{p.plan?.name}</td>
+                      <td>
+                        {p.period ? PERIOD_LABEL[p.period] : ""}
+                        <div className="text-xs text-slate-500">{date(p.valid_from)} to {date(p.valid_until)}</div>
+                      </td>
+                      <td className="text-right">{inr(p.amount)}</td>
+                      <td className="whitespace-nowrap pl-4">
+                        {p.invoice_no ? (
+                          <Link className="text-indigo-600 hover:underline" to={`/invoice/subscription/${p.id}`}>{p.invoice_no}</Link>
+                        ) : (
+                          <span className="text-xs text-slate-400">Not available</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      )}
 
       {requests.length > 0 && (
         <Card title="History">
