@@ -16,7 +16,7 @@ type PaymentMode = Tables<"renewal_requests">["payment_mode"];
 
 // Subscription status, how to pay, and a form to tell the Super Admin you paid.
 export default function Billing() {
-  const { workspace, plan, status } = useWorkspace();
+  const { workspace, plan, status, isAdmin } = useWorkspace();
   const { session } = useAuth();
   const [settings, setSettings] = useState<Tables<"platform_settings"> | null>(null);
   const [requests, setRequests] = useState<Tables<"renewal_requests">[]>([]);
@@ -57,7 +57,10 @@ export default function Billing() {
       note: note || null,
       requested_by: session?.user.id,
     });
-    if (error) return setMessage({ tone: "error", text: error.message });
+    if (error) {
+      const text = error.code === "42501" ? "You can't send a renewal for this company right now." : error.message;
+      return setMessage({ tone: "error", text });
+    }
     setMessage({ tone: "success", text: "Sent. The Super Admin will confirm your payment and extend the subscription." });
     setReference("");
     setNote("");
@@ -88,7 +91,11 @@ export default function Billing() {
       )}
 
       <Card title="I have paid">
-        {available.length === 0 ? (
+        {!isAdmin ? (
+          <p className="text-sm text-slate-500">Only the company owner or an admin can renew.</p>
+        ) : status === "suspended" ? (
+          <p className="text-sm text-slate-500">This company is suspended. Contact the Super Admin to renew.</p>
+        ) : available.length === 0 ? (
           <p className="text-sm text-slate-500">Your plan's price is set by the Super Admin. Contact them to renew.</p>
         ) : pending ? (
           <Alert tone="info">Your last payment is waiting for confirmation.</Alert>

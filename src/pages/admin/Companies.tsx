@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { supabase, type Tables } from "../../lib/supabase";
 import { StatusBadge } from "../../lib/status";
 import { Alert, Button, Card, Field, Input, PinBox, Select } from "../../components/ui";
@@ -70,16 +70,31 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState("30");
   const [planId, setPlanId] = useState(w.plan_id);
-  const [pin, setPin] = useState<{ pin: string; expires_at: string } | null>(null);
+  const [pin, setPin] = useState<{ pin: string; expires_at: string; label: string } | null>(null);
   const [error, setError] = useState("");
+  // The owner's account, once they have signed up (undefined while loading).
+  const [ownerId, setOwnerId] = useState<string | null | undefined>(undefined);
 
-  async function update(state?: "active" | "suspended") {
+  const loadOwner = useCallback(async () => {
+    const { data } = await supabase
+      .from("workspace_members")
+      .select("user_id")
+      .eq("workspace_id", w.id)
+      .eq("role", "owner")
+      .maybeSingle();
+    setOwnerId(data?.user_id ?? null);
+  }, [w.id]);
+  useEffect(() => {
+    if (open) loadOwner();
+  }, [open, loadOwner]);
+
+  async function update(state: "active" | "suspended", addDays: number) {
     setError("");
     const { error } = await supabase.rpc("admin_update_subscription", {
       p_workspace_id: w.id,
-      p_add_days: state === "suspended" ? 0 : Number(days) || 0,
+      p_add_days: addDays,
       p_plan_id: planId,
-      p_state: state ?? (w.state === "suspended" ? "active" : w.state),
+      p_state: state,
     });
     if (error) setError(error.message);
     else onChanged();
@@ -87,14 +102,16 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
 
   async function ownerPin() {
     setError("");
-    const { data, error } = await supabase.rpc("issue_access_pin", {
-      p_purpose: "signup",
-      p_workspace_id: w.id,
-      p_role: "owner",
-      p_email: w.owner_email ?? undefined,
-    });
-    if (error) setError(error.message);
-    else setPin(data as { pin: string; expires_at: string });
+    setPin(null);
+    const { data, error } = await supabase.rpc(
+      "issue_access_pin",
+      ownerId
+        ? { p_purpose: "reset", p_workspace_id: w.id, p_target_user_id: ownerId }
+        : { p_purpose: "signup", p_workspace_id: w.id, p_role: "owner", p_email: w.owner_email ?? undefined },
+    );
+    if (error) return setError(error.message);
+    const label = ownerId ? "Owner password reset PIN. They enter it at /reset." : "Owner sign-up PIN. They enter it at /signup.";
+    setPin({ ...(data as { pin: string; expires_at: string }), label });
   }
 
   return (
@@ -124,17 +141,24 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
                 </Select>
               </Field>
               <div className="flex items-end gap-2">
-                <Button onClick={() => update("active")}>Save as paid</Button>
+                <Button onClick={() => update("active", Number(days) || 0)}>Save as paid</Button>
                 {w.state === "suspended" ? (
-                  <Button variant="secondary" onClick={() => update("active")}>Unsuspend</Button>
+                  <Button variant="secondary" onClick={() => update("active", 0)}>Unsuspend</Button>
                 ) : (
-                  <Button variant="danger" onClick={() => update("suspended")}>Suspend</Button>
+                  <Button variant="danger" onClick={() => update("suspended", 0)}>Suspend</Button>
                 )}
               </div>
             </div>
             <div className="mt-4 space-y-2">
-              <Button variant="secondary" onClick={ownerPin}>New owner sign-up PIN</Button>
-              {pin && <PinBox pin={pin.pin} expires={pin.expires_at} />}
+              <Button variant="secondary" disabled={ownerId === undefined} onClick={ownerPin}>
+                {ownerId ? "Owner password reset PIN" : "New owner sign-up PIN"}
+              </Button>
+              {pin && (
+                <>
+                  <p className="text-sm text-slate-600">{pin.label}</p>
+                  <PinBox pin={pin.pin} expires={pin.expires_at} />
+                </>
+              )}
               {error && <Alert>{error}</Alert>}
             </div>
           </td>

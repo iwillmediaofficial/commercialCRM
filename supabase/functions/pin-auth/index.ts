@@ -25,6 +25,8 @@ const MESSAGES: Record<string, string> = {
   workspace_inactive: "This company's subscription is not active. Ask the owner to renew.",
   account_exists: "This email already has an account. Enter that account's password to add the company to it.",
   weak_password: "Use a password of at least 8 characters.",
+  seat_limit: "This company has used all the staff seats on its plan. Ask the owner to free a seat or upgrade.",
+  owner_exists: "This company already has an owner. Sign in with the owner's account, or ask the Super Admin.",
   bad_request: "Fill in every required field.",
   failed: "Something went wrong. Try again, or ask your admin for a new PIN.",
 };
@@ -105,6 +107,8 @@ Deno.serve(async (req) => {
     });
     if (consumeErr || !consumed?.ok) {
       if (created) await admin.auth.admin.deleteUser(userId);
+      if (consumeErr?.hint === "seat_limit") return fail("seat_limit");
+      if (consumeErr?.code === "23505") return fail("owner_exists");
       return fail("invalid_pin");
     }
     return reply(200, { ok: true, workspace_id: consumed.workspace_id, role: consumed.role });

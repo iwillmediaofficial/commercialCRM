@@ -46,8 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq("user_id", s.user.id)
         .eq("is_active", true),
     ]);
-    setIsPlatformAdmin(Boolean(admin.data));
-    setMemberships((members.data ?? []) as unknown as Membership[]);
+    // On a failed lookup keep what we had rather than hiding someone's access.
+    if (!admin.error) setIsPlatformAdmin(Boolean(admin.data));
+    if (!members.error) setMemberships((members.data ?? []) as unknown as Membership[]);
     setLoading(false);
   }, []);
 

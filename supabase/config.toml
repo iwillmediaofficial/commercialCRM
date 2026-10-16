@@ -1,0 +1,5 @@
+project_id = "zpotoxpaeqeissxycgrz"
+
+# pin-auth checks PINs itself and is called before anyone is signed in.
+[functions.pin-auth]
+verify_jwt = false

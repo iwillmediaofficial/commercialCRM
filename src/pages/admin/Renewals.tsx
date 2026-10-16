@@ -27,9 +27,10 @@ export default function Renewals() {
     load();
   }
   async function reject(id: string) {
-    const reason = window.prompt("Reason for rejecting (the company will see it):") ?? "";
+    const reason = window.prompt("Reason for rejecting (the company will see it):");
+    if (reason === null) return; // cancelled
     setError("");
-    const { error } = await supabase.rpc("reject_renewal", { p_request_id: id, p_reason: reason });
+    const { error } = await supabase.rpc("reject_renewal", { p_request_id: id, p_reason: reason.trim() || "Please contact support." });
     if (error) setError(error.message);
     load();
   }

@@ -83,7 +83,7 @@ export default function Team() {
       {newPin && (
         <Card title={newPin.label}>
           <PinBox pin={newPin.pin} expires={newPin.expires_at} />
-          <p className="mt-2 text-sm text-slate-500">Send it to them yourself. They enter it at /signup{newPin.label.startsWith("Password") ? " → Forgot password" : ""}.</p>
+          <p className="mt-2 text-sm text-slate-500">Send it to them yourself. They enter it at {newPin.label.startsWith("Password") ? "/reset" : "/signup"}.</p>
         </Card>
       )}
 
