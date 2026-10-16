@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Outlet, useParams } from "react-router";
+import { Link, NavLink, Navigate, Outlet, useParams } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { StatusBadge, type WorkspaceStatus } from "../../lib/status";
@@ -83,7 +83,15 @@ export default function WorkspaceLayout() {
   function subscriptionBanner() {
     if (!ctx) return null;
     const until = new Date(ctx.workspace.valid_until).toLocaleDateString();
-    if (ctx.role === null) return <Alert tone="info">You are viewing this company as Super Admin (read-only).</Alert>;
+    if (ctx.role === null)
+      return (
+        <Alert tone="info">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>You are viewing {ctx.workspace.name} as Super Admin. Nothing can be changed from here.</span>
+            <Link className="font-medium underline" to="/admin">Exit to Super Admin</Link>
+          </div>
+        </Alert>
+      );
     if (ctx.status === "grace") return <Alert tone="warning">The subscription ended on {until}. Renew soon to keep editing.</Alert>;
     if (ctx.status === "expired") return <Alert>The subscription ended on {until}. Everything is read-only until it is renewed.</Alert>;
     if (ctx.status === "suspended") return <Alert>This company is suspended. Contact support.</Alert>;

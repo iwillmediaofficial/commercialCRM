@@ -1743,6 +1743,23 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_log_support_view: {
+        Args: { p_workspace_id: string }
+        Returns: undefined
+      }
+      admin_record_payment: {
+        Args: {
+          p_amount: number
+          p_note?: string
+          p_paid_on?: string
+          p_payment_mode: Database["public"]["Enums"]["payment_mode"]
+          p_period: Database["public"]["Enums"]["billing_period"]
+          p_plan_id: string
+          p_reference_no?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       admin_update_subscription: {
         Args: {
           p_add_days?: number
@@ -1752,6 +1769,15 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: undefined
+      }
+      admin_workspace_overview: {
+        Args: never
+        Returns: {
+          active_members: number
+          pending_renewals: number
+          status: string
+          workspace_id: string
+        }[]
       }
       approve_renewal: {
         Args: { p_admin_note?: string; p_request_id: string }

@@ -1,65 +1,104 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase, type Tables } from "../../lib/supabase";
-import { Alert, Button, Card } from "../../components/ui";
+import { MODE_LABEL, PERIOD_LABEL, inr } from "../../lib/format";
+import { Alert, Button, Card, Select } from "../../components/ui";
 
-type Row = Tables<"renewal_requests"> & { workspace: { name: string } | null; plan: { name: string } | null };
+type Row = Tables<"renewal_requests"> & {
+  workspace: Pick<Tables<"workspaces">, "name" | "owner_name" | "owner_email" | "owner_phone"> | null;
+  plan: { name: string } | null;
+};
 
 export default function Renewals() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [filter, setFilter] = useState<"pending" | "all">("pending");
   const [error, setError] = useState("");
+  const [done, setDone] = useState("");
 
-  async function load() {
-    const { data } = await supabase
+  const load = useCallback(async () => {
+    let query = supabase
       .from("renewal_requests")
-      .select("*, workspace:workspaces(name), plan:plans(name)")
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .select("*, workspace:workspaces(name, owner_name, owner_email, owner_phone), plan:plans(name)")
+      .order("created_at", { ascending: filter === "pending" })
+      .limit(200);
+    if (filter === "pending") query = query.eq("status", "pending");
+    const { data } = await query;
     setRows((data ?? []) as Row[]);
-  }
+  }, [filter]);
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  async function approve(id: string) {
+  async function approve(r: Row) {
+    const note = window.prompt(`Approve ${inr(r.amount)} from ${r.workspace?.name}? Add a note if you like (optional):`, "");
+    if (note === null) return;
     setError("");
-    const { error } = await supabase.rpc("approve_renewal", { p_request_id: id });
+    setDone("");
+    const { data, error } = await supabase.rpc("approve_renewal", { p_request_id: r.id, p_admin_note: note.trim() || undefined });
     if (error) setError(error.message);
+    else setDone(`${r.workspace?.name} is active until ${new Date((data as { valid_until: string }).valid_until).toLocaleDateString()}.`);
     load();
   }
-  async function reject(id: string) {
+  async function reject(r: Row) {
     const reason = window.prompt("Reason for rejecting (the company will see it):");
-    if (reason === null) return; // cancelled
+    if (reason === null) return;
     setError("");
-    const { error } = await supabase.rpc("reject_renewal", { p_request_id: id, p_reason: reason.trim() || "Please contact support." });
+    setDone("");
+    const { error } = await supabase.rpc("reject_renewal", { p_request_id: r.id, p_reason: reason.trim() || "Please contact support." });
     if (error) setError(error.message);
     load();
   }
 
   return (
-    <Card title="Renewal requests">
+    <Card
+      title="Renewal requests"
+      actions={
+        <Select className="w-auto" value={filter} onChange={(e) => setFilter(e.target.value as "pending" | "all")}>
+          <option value="pending">Waiting for you</option>
+          <option value="all">All requests</option>
+        </Select>
+      }
+    >
+      <p className="mb-3 text-sm text-slate-500">Check your bank or UPI app for the payment before you approve. Approving extends the company from its current end date (or from today if it has lapsed).</p>
       {error && <div className="mb-3"><Alert>{error}</Alert></div>}
+      {done && <div className="mb-3"><Alert tone="success">{done}</Alert></div>}
       {rows.length === 0 ? (
-        <p className="text-sm text-slate-500">No renewal requests yet.</p>
+        <p className="text-sm text-slate-500">{filter === "pending" ? "Nothing waiting." : "No renewal requests yet."}</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-slate-500">
-              <tr><th className="py-2">Company</th><th>Plan</th><th>Period</th><th>Amount</th><th>Paid by</th><th>Status</th><th></th></tr>
+              <tr><th className="py-2">Company</th><th>Plan</th><th>Period</th><th>Amount</th><th>Paid by</th><th>Requested</th><th>Status</th><th></th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((r) => (
-                <tr key={r.id}>
-                  <td className="py-2">{r.workspace?.name}<div className="text-xs text-slate-500">{new Date(r.created_at).toLocaleString()}</div></td>
-                  <td>{r.plan?.name}</td>
-                  <td className="capitalize">{r.period.replace("_", " ")}</td>
-                  <td>₹{Number(r.amount).toLocaleString("en-IN")}</td>
-                  <td className="uppercase">{r.payment_mode}{r.reference_no && <div className="text-xs normal-case text-slate-500">Ref {r.reference_no}</div>}</td>
-                  <td className="capitalize">{r.status}</td>
-                  <td className="space-x-2 text-right">
+                <tr key={r.id} className="align-top">
+                  <td className="py-2">
+                    <div className="font-medium">{r.workspace?.name}</div>
+                    <div className="text-xs text-slate-500">
+                      {r.workspace?.owner_name}
+                      {r.workspace?.owner_phone && ` · ${r.workspace.owner_phone}`}
+                      {r.workspace?.owner_email && <div>{r.workspace.owner_email}</div>}
+                    </div>
+                  </td>
+                  <td className="py-2">{r.plan?.name}</td>
+                  <td className="py-2">{PERIOD_LABEL[r.period]}</td>
+                  <td className="py-2">{inr(r.amount)}</td>
+                  <td className="py-2">
+                    {MODE_LABEL[r.payment_mode]}
+                    {r.reference_no && <div className="text-xs text-slate-500">UTR {r.reference_no}</div>}
+                    {r.receipt_path && <div className="text-xs text-slate-500">Receipt attached</div>}
+                    {r.note && <div className="text-xs text-slate-500">“{r.note}”</div>}
+                  </td>
+                  <td className="py-2">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="py-2 capitalize">
+                    {r.status}
+                    {r.admin_note && <div className="text-xs normal-case text-slate-500">{r.admin_note}</div>}
+                  </td>
+                  <td className="space-x-2 whitespace-nowrap py-2 text-right">
                     {r.status === "pending" && (
                       <>
-                        <Button onClick={() => approve(r.id)}>Approve</Button>
-                        <Button variant="danger" onClick={() => reject(r.id)}>Reject</Button>
+                        <Button onClick={() => approve(r)}>Approve &amp; activate</Button>
+                        <Button variant="danger" onClick={() => reject(r)}>Reject</Button>
                       </>
                     )}
                   </td>

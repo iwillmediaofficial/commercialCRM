@@ -10,6 +10,9 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import Companies from "./pages/admin/Companies";
 import Renewals from "./pages/admin/Renewals";
 import Plans from "./pages/admin/Plans";
+import Payments from "./pages/admin/Payments";
+import AuditLog from "./pages/admin/AuditLog";
+import AdminSettings from "./pages/admin/Settings";
 import WorkspaceLayout from "./pages/workspace/WorkspaceLayout";
 import Dashboard from "./pages/workspace/Dashboard";
 import Team from "./pages/workspace/Team";
@@ -40,7 +43,10 @@ const router = createBrowserRouter([
         children: [
           { index: true, element: <Companies /> },
           { path: "renewals", element: <Renewals /> },
+          { path: "payments", element: <Payments /> },
           { path: "plans", element: <Plans /> },
+          { path: "audit", element: <AuditLog /> },
+          { path: "settings", element: <AdminSettings /> },
         ],
       },
       {
