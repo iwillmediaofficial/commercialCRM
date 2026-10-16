@@ -1,7 +1,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
+import { useAuth } from "../../../lib/auth";
 import { useMembers, nameOf } from "../../../lib/members";
+import { Attachments, StoredImage } from "../../../components/Files";
 import { MODE_LABEL, date, inr } from "../../../lib/format";
 import { Badge, Button, Drawer, Empty, Spinner } from "../../../components/ui";
 import { platformLabel } from "./platforms";
@@ -23,6 +25,9 @@ export default function ClientDrawer({ client, onClose, onEdit }: { client: Clie
   return (
     <Drawer title={client.company_name} onClose={onClose}>
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        {client.logo_path && (
+          <StoredImage storageKey={client.logo_path} alt="" className="h-10 w-10 rounded-md object-cover ring-1 ring-slate-200" />
+        )}
         <Badge tone={client.status === "active" ? "bg-green-100 text-green-700" : undefined}>
           {client.status === "active" ? "Active" : "Inactive"}
         </Badge>
@@ -47,12 +52,34 @@ export default function ClientDrawer({ client, onClose, onEdit }: { client: Clie
         ))}
       </div>
 
-      {tab === "details" && <Details client={client} />}
+      {tab === "details" && (
+        <>
+          <Details client={client} />
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <ClientFiles clientId={client.id} />
+          </div>
+        </>
+      )}
       {tab === "work" && <WorkTab clientId={client.id} />}
       {tab === "invoices" && <InvoicesTab clientId={client.id} />}
       {tab === "adfunds" && <AdFundsTab client={client} />}
       {tab === "leads" && <LeadsTab clientId={client.id} />}
     </Drawer>
+  );
+}
+
+function ClientFiles({ clientId }: { clientId: string }) {
+  const { workspace, canWrite, isAdmin } = useWorkspace();
+  const { session } = useAuth();
+  const me = session?.user.id;
+  return (
+    <Attachments
+      workspaceId={workspace.id}
+      entityType="client"
+      entityId={clientId}
+      canUpload={canWrite}
+      canDelete={(f) => canWrite && (f.uploaded_by === me || isAdmin)}
+    />
   );
 }
 
@@ -82,7 +109,6 @@ function Details({ client: c }: { client: Client }) {
         </>
       )}
       <Row label="Notes"><span className="whitespace-pre-line">{c.notes}</span></Row>
-      <Row label="Logo"><span className="text-xs text-slate-500">File uploads arrive with file storage.</span></Row>
       <Row label="Added on">{date(c.created_at)}</Row>
     </dl>
   );

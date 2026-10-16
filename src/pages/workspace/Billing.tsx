@@ -3,6 +3,7 @@ import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { useWorkspace } from "../../lib/workspace";
 import { StatusBadge } from "../../lib/status";
+import { MAX_FILE_MB, uploadFile } from "../../lib/files";
 import { Alert, Button, Card, Field, Input, Select } from "../../components/ui";
 
 const PERIODS = [
@@ -25,6 +26,9 @@ export default function Billing() {
   const [mode, setMode] = useState<PaymentMode>("upi");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [receiptKey, setReceiptKey] = useState(0); // resets the file input
+  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -47,6 +51,20 @@ export default function Billing() {
     e.preventDefault();
     if (!chosen || !plan) return;
     setMessage(null);
+    setSending(true);
+    let receiptPath: string | null = null;
+    if (receipt) {
+      if (!receipt.type.startsWith("image/") && receipt.type !== "application/pdf") {
+        setSending(false);
+        return setMessage({ tone: "error", text: "The receipt should be an image or a PDF." });
+      }
+      const up = await uploadFile({ workspaceId: workspace.id, entityType: "renewal", file: receipt });
+      if (!up.ok) {
+        setSending(false);
+        return setMessage({ tone: "error", text: `Receipt: ${up.message}` });
+      }
+      receiptPath = up.file.r2_key;
+    }
     const { error } = await supabase.from("renewal_requests").insert({
       workspace_id: workspace.id,
       plan_id: plan.id,
@@ -55,8 +73,10 @@ export default function Billing() {
       payment_mode: mode,
       reference_no: reference || null,
       note: note || null,
+      receipt_path: receiptPath,
       requested_by: session?.user.id,
     });
+    setSending(false);
     if (error) {
       const text = error.code === "42501" ? "You can't send a renewal for this company right now." : error.message;
       return setMessage({ tone: "error", text });
@@ -64,6 +84,8 @@ export default function Billing() {
     setMessage({ tone: "success", text: "Sent. The Super Admin will confirm your payment and extend the subscription." });
     setReference("");
     setNote("");
+    setReceipt(null);
+    setReceiptKey((k) => k + 1);
     load();
   }
 
@@ -119,7 +141,18 @@ export default function Billing() {
             </Field>
             <Field label="Reference / UTR number"><Input value={reference} onChange={(e) => setReference(e.target.value)} /></Field>
             <Field label="Note"><Input value={note} onChange={(e) => setNote(e.target.value)} /></Field>
-            <div className="sm:col-span-2"><Button>Send for confirmation</Button></div>
+            <div className="sm:col-span-2">
+                <Field label="Payment screenshot (optional)" hint={`An image or PDF, up to ${MAX_FILE_MB} MB.`}>
+                  <input
+                    key={receiptKey}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-200"
+                    onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
+                  />
+                </Field>
+              </div>
+            <div className="sm:col-span-2"><Button disabled={sending}>{sending ? "Sending…" : "Send for confirmation"}</Button></div>
           </form>
         )}
         {message && <div className="mt-3"><Alert tone={message.tone}>{message.text}</Alert></div>}

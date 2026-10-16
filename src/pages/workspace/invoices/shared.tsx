@@ -5,6 +5,8 @@ import type { Database } from "../../../lib/database.types";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
 import { date, inr, MODE_LABEL, MODES, type PaymentMode } from "../../../lib/format";
+import { useFileUrl } from "../../../lib/files";
+import { Attachments } from "../../../components/Files";
 import { Alert, Badge, Button, Card, Drawer, Empty, Field, Input, Modal, Select, Spinner, Textarea } from "../../../components/ui";
 
 // ---------------------------------------------------------------------------
@@ -563,7 +565,7 @@ export function PaymentModal({ invoice, onClose, onSaved }: { invoice: InvoiceRo
         <Field label="Notes">
           <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
         </Field>
-        <p className="text-xs text-slate-400">Receipts: file uploads arrive with file storage.</p>
+        <p className="text-xs text-slate-500">Got a receipt or screenshot? Attach it to the invoice under Files.</p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={busy}>Save payment</Button>
@@ -576,7 +578,19 @@ export function PaymentModal({ invoice, onClose, onSaved }: { invoice: InvoiceRo
 // ---------------------------------------------------------------------------
 // Printable invoice document
 // ---------------------------------------------------------------------------
-export function InvoiceDocument({ invoice, items, client, settings }: { invoice: InvoiceRow; items: Item[]; client: Client | undefined; settings: Settings | null }) {
+export function InvoiceDocument({
+  invoice,
+  items,
+  client,
+  settings,
+  logoUrl,
+}: {
+  invoice: InvoiceRow;
+  items: Item[];
+  client: Client | undefined;
+  settings: Settings | null;
+  logoUrl?: string | null;
+}) {
   const intra =
     !invoice.place_of_supply || !settings?.state || invoice.place_of_supply.trim().toLowerCase() === settings.state.trim().toLowerCase();
   const taxTotal = Number(invoice.tax_total ?? 0);
@@ -591,6 +605,7 @@ export function InvoiceDocument({ invoice, items, client, settings }: { invoice:
     <div className="invoice-doc bg-white text-sm text-slate-800">
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300 pb-4">
         <div>
+          {logoUrl && <img src={logoUrl} alt="" className="mb-2 max-h-16 max-w-[180px] object-contain" />}
           <div className="text-xl font-bold">{settings?.legal_name || settings?.company_name}</div>
           {addr && <div className="whitespace-pre-line text-slate-600">{addr}</div>}
           <div className="text-slate-600">
@@ -735,21 +750,27 @@ const PRINT_CSS = `
 }`;
 
 function PrintModal(props: { invoice: InvoiceRow; items: Item[]; client: Client | undefined; settings: Settings | null; onClose: () => void }) {
+  // One signed link for both copies; the logo shows once it has loaded, then Print includes it.
+  const logoKey = props.settings?.logo_path;
+  const logoUrl = useFileUrl(logoKey);
+  const logoLoading = !!logoKey && !logoUrl;
   return (
     <Modal wide title={`Invoice ${props.invoice.invoice_number}`} onClose={props.onClose}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-500">Use Print, then choose “Save as PDF” to get a PDF. Logo: file uploads arrive with file storage.</p>
+        <p className="text-xs text-slate-500">
+          Use Print, then choose “Save as PDF” to get a PDF.{logoLoading && " Loading your logo…"}
+        </p>
         <Button onClick={() => window.print()}>Print / Save PDF</Button>
       </div>
       <div className="overflow-x-auto rounded-md p-4 ring-1 ring-slate-200">
         <div className="min-w-[560px]">
-          <InvoiceDocument {...props} />
+          <InvoiceDocument {...props} logoUrl={logoUrl} />
         </div>
       </div>
       {createPortal(
         <div id="invoice-print-root">
           <style>{PRINT_CSS}</style>
-          <InvoiceDocument {...props} />
+          <InvoiceDocument {...props} logoUrl={logoUrl} />
         </div>,
         document.body,
       )}
@@ -937,6 +958,16 @@ export function InvoiceView({
             <p className="text-sm text-slate-500">No payments recorded yet.</p>
           )}
         </div>
+
+        {isAdmin && (
+          <Attachments
+            workspaceId={workspace.id}
+            entityType="invoice"
+            entityId={invoice.id!}
+            canUpload={canEdit}
+            canDelete={() => canEdit}
+          />
+        )}
 
         <div className="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
           <Button variant="secondary" onClick={() => setMode("print")}>Print / PDF</Button>

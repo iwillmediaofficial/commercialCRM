@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { supabase, type Tables } from "../../../lib/supabase";
 import type { Json } from "../../../lib/database.types";
 import { useWorkspace } from "../../../lib/workspace";
+import { ImagePicker } from "../../../components/Files";
 import { Alert, Button, Card, Field, Input, Spinner, Textarea } from "../../../components/ui";
 
 type Settings = Tables<"workspace_settings">;
@@ -101,6 +102,14 @@ export default function WorkspaceSettings() {
     </Field>
   );
 
+  async function saveLogo(key: string | null) {
+    setError("");
+    const { error } = await supabase.from("workspace_settings").update({ logo_path: key }).eq("workspace_id", workspace.id);
+    if (error) return setError(error.message);
+    setSettings((s) => (s ? { ...s, logo_path: key } : s));
+    window.dispatchEvent(new Event("workspace-logo-changed"));
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault();
     if (!form || !settings) return;
@@ -168,9 +177,17 @@ export default function WorkspaceSettings() {
         {text("phone", "Phone", { type: "tel" })}
         {text("email", "Email", { type: "email" })}
         {text("website", "Website", { placeholder: "example.com" })}
-        <div>
-          <span className="mb-1 block text-sm font-medium text-slate-700">Logo</span>
-          <p className="text-xs text-slate-500">File uploads arrive with file storage.</p>
+        <div className="sm:col-span-2">
+          <ImagePicker
+            workspaceId={workspace.id}
+            entityType="workspace"
+            entityId={workspace.id}
+            label="Company logo"
+            value={settings.logo_path}
+            disabled={readOnly}
+            onChange={saveLogo}
+          />
+          <p className="mt-1 text-xs text-slate-500">Shown on invoices, lead forms and at the top of the app. Saved right away.</p>
         </div>
       </Section>
 

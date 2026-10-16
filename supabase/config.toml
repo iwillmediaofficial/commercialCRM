@@ -3,3 +3,7 @@ project_id = "zpotoxpaeqeissxycgrz"
 # pin-auth checks PINs itself and is called before anyone is signed in.
 [functions.pin-auth]
 verify_jwt = false
+
+# files checks the caller's sign-in itself (public lead forms call it signed out).
+[functions.files]
+verify_jwt = false

@@ -4,6 +4,7 @@ import { useWorkspace } from "../../../lib/workspace";
 import { nameOf, type Person } from "../../../lib/members";
 import { date } from "../../../lib/format";
 import { Alert, Button, Field, Input, Modal, Select, Textarea } from "../../../components/ui";
+import { Attachments } from "../../../components/Files";
 import { SOURCES, STAGES, humanize, type FormField, type Stage } from "./leadShared";
 
 export type Lead = Tables<"leads">;
@@ -157,6 +158,16 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
               <p className="text-sm text-slate-500">No extra answers.</p>
             )}
           </div>
+        )}
+
+        {lead && (
+          <Attachments
+            workspaceId={workspace.id}
+            entityType="lead"
+            entityId={lead.id}
+            canUpload={canWrite}
+            canDelete={(f) => canWrite && (f.uploaded_by === me || isAdmin)}
+          />
         )}
 
         {lead && (

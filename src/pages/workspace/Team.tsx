@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { supabase, type MemberRole, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { useWorkspace } from "../../lib/workspace";
+import { ImagePicker, StoredImage } from "../../components/Files";
 import { Alert, Badge, Button, Card, Field, Input, Modal, PinBox, Select } from "../../components/ui";
 
 type Member = Tables<"workspace_members"> & { profile?: Tables<"profiles"> };
@@ -168,8 +169,9 @@ export default function Team() {
             return (
               <li key={m.user_id} className="flex flex-wrap items-start justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
                     {(p?.full_name || p?.email || "?").trim().charAt(0).toUpperCase()}
+                    {p?.avatar_path && <StoredImage storageKey={p.avatar_path} className="absolute inset-0 h-full w-full object-cover" />}
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -307,6 +309,8 @@ export default function Team() {
 }
 
 function ProfileForm({ profile, onClose, onSaved }: { profile: Tables<"profiles">; onClose: () => void; onSaved: () => void }) {
+  const { workspace, canWrite } = useWorkspace();
+  const [avatar, setAvatar] = useState<string | null>(profile.avatar_path ?? null);
   const [form, setForm] = useState({
     full_name: profile.full_name,
     phone: profile.phone ?? "",
@@ -327,6 +331,7 @@ function ProfileForm({ profile, onClose, onSaved }: { profile: Tables<"profiles"
         phone: form.phone.trim() || null,
         designation: form.designation.trim() || null,
         department: form.department.trim() || null,
+        avatar_path: avatar,
       })
       .eq("id", profile.id);
     setSaving(false);
@@ -338,6 +343,16 @@ function ProfileForm({ profile, onClose, onSaved }: { profile: Tables<"profiles"
     <Modal title="Edit my profile" onClose={onClose}>
       <form className="space-y-3" onSubmit={save}>
         {error && <Alert>{error}</Alert>}
+        <ImagePicker
+          workspaceId={workspace.id}
+          entityType="profile"
+          entityId={profile.id}
+          label="Profile photo"
+          shape="round"
+          value={avatar}
+          disabled={!canWrite}
+          onChange={setAvatar}
+        />
         <Field label="Full name">
           <Input required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />
         </Field>
@@ -350,7 +365,7 @@ function ProfileForm({ profile, onClose, onSaved }: { profile: Tables<"profiles"
         <Field label="Department">
           <Input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
         </Field>
-        <p className="text-xs text-slate-500">Email: {profile.email} (cannot be changed here). Profile photos arrive with file storage.</p>
+        <p className="text-xs text-slate-500">Email: {profile.email} (cannot be changed here).</p>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button disabled={saving}>{saving ? "Saving…" : "Save"}</Button>

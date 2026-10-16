@@ -3,6 +3,7 @@ import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Field, Input, Modal, Select, Spinner, Textarea } from "../../../components/ui";
+import { ImagePicker, StoredImage } from "../../../components/Files";
 import ClientDrawer from "./ClientDrawer";
 import { AD_PLATFORMS, platformLabel } from "./platforms";
 
@@ -21,6 +22,7 @@ type Form = {
   is_dm_client: boolean;
   monthly_ad_target: string;
   ad_platforms: string[];
+  logo_path: string | null;
 };
 
 const EMPTY: Form = {
@@ -36,6 +38,7 @@ const EMPTY: Form = {
   is_dm_client: false,
   monthly_ad_target: "",
   ad_platforms: [],
+  logo_path: null,
 };
 
 function toForm(c: Client): Form {
@@ -52,6 +55,7 @@ function toForm(c: Client): Form {
     is_dm_client: c.is_dm_client,
     monthly_ad_target: c.monthly_ad_target ? String(c.monthly_ad_target) : "",
     ad_platforms: c.ad_platforms ?? [],
+    logo_path: c.logo_path ?? null,
   };
 }
 
@@ -153,13 +157,22 @@ export default function Clients() {
                   onClick={() => setViewing(c)}
                   className="grid w-full gap-1 py-3 text-left hover:bg-slate-50 sm:grid-cols-[2fr_1.5fr_1.5fr] sm:items-center sm:gap-3 sm:px-2"
                 >
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-3">
+                    {c.logo_path ? (
+                      <StoredImage storageKey={c.logo_path} className="h-8 w-8 shrink-0 rounded-md object-cover ring-1 ring-slate-200" />
+                    ) : (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-500">
+                        {c.company_name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{c.company_name}</span>
                       {c.is_dm_client && <Badge tone="bg-indigo-100 text-indigo-700">DM</Badge>}
                       {c.status === "inactive" && <Badge>Inactive</Badge>}
                     </div>
                     {c.contact_person && <div className="text-xs text-slate-500">{c.contact_person}</div>}
+                    </div>
                   </div>
                   <div className="truncate text-sm text-slate-600">{c.phone}</div>
                   <div className="truncate text-sm text-slate-600">{c.email}</div>
@@ -218,6 +231,7 @@ function ClientForm({ client, onClose, onSaved }: { client: Client | null; onClo
       is_dm_client: form.is_dm_client,
       monthly_ad_target: form.is_dm_client ? Number(form.monthly_ad_target || 0) : 0,
       ad_platforms: form.is_dm_client ? form.ad_platforms : [],
+      logo_path: form.logo_path,
     };
     const res = client
       ? await supabase.from("clients").update(row).eq("workspace_id", workspace.id).eq("id", client.id).select().single()
@@ -275,10 +289,14 @@ function ClientForm({ client, onClose, onSaved }: { client: Client | null; onClo
               <option value="inactive">Inactive</option>
             </Select>
           </Field>
-          <div>
-            <span className="mb-1 block text-sm font-medium text-slate-700">Logo</span>
-            <p className="text-xs text-slate-500">File uploads arrive with file storage.</p>
-          </div>
+          <ImagePicker
+            workspaceId={workspace.id}
+            entityType="client"
+            entityId={client?.id}
+            label="Logo"
+            value={form.logo_path}
+            onChange={(key) => set("logo_path", key)}
+          />
         </div>
 
         <div className="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">

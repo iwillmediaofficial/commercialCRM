@@ -13,6 +13,7 @@ export default function WorkspaceLayout() {
   const { memberships, isPlatformAdmin } = useAuth();
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null);
   const [missing, setMissing] = useState(false);
+  const [logoPath, setLogoPath] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,7 +21,12 @@ export default function WorkspaceLayout() {
       const { data: ws } = await supabase.from("workspaces").select("*, plan:plans(*)").eq("slug", slug ?? "").maybeSingle();
       if (cancelled) return;
       if (!ws) return setMissing(true);
-      const { data: status } = await supabase.rpc("workspace_status", { ws: ws.id });
+      const [{ data: status }, { data: settings }] = await Promise.all([
+        supabase.rpc("workspace_status", { ws: ws.id }),
+        supabase.from("workspace_settings").select("logo_path").eq("workspace_id", ws.id).maybeSingle(),
+      ]);
+      if (cancelled) return;
+      setLogoPath(settings?.logo_path ?? null);
       const { plan, ...workspace } = ws as Tables<"workspaces"> & { plan: Tables<"plans"> | null };
       const role = memberships.find((m) => m.workspace_id === ws.id)?.role ?? null;
       const s = (status ?? "expired") as WorkspaceStatus;
@@ -39,6 +45,18 @@ export default function WorkspaceLayout() {
       cancelled = true;
     };
   }, [slug, memberships]);
+
+  // Settings saves a new logo right away; pick it up without a reload.
+  const workspaceId = ctx?.workspace.id;
+  useEffect(() => {
+    if (!workspaceId) return;
+    const reload = async () => {
+      const { data } = await supabase.from("workspace_settings").select("logo_path").eq("workspace_id", workspaceId).maybeSingle();
+      setLogoPath(data?.logo_path ?? null);
+    };
+    window.addEventListener("workspace-logo-changed", reload);
+    return () => window.removeEventListener("workspace-logo-changed", reload);
+  }, [workspaceId]);
 
   if (missing) return <Navigate to="/" replace />;
   if (!ctx) return <Spinner />;
@@ -63,7 +81,7 @@ export default function WorkspaceLayout() {
 
   return (
     <WorkspaceContext.Provider value={ctx}>
-      <TopBar title={ctx.workspace.name} workspace={ctx.workspace} />
+      <TopBar title={ctx.workspace.name} workspace={ctx.workspace} logoPath={logoPath} />
       {ctx.hasModule("work") && ctx.role && <TimerBar />}
       <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 md:flex-row">
         <nav className="flex gap-1 overflow-x-auto md:w-48 md:flex-col">

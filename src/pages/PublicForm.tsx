@@ -22,6 +22,22 @@ export default function PublicForm() {
   const [done, setDone] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [art, setArt] = useState<{ logo: string | null; banner: string | null }>({ logo: null, banner: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.functions
+      .invoke("files", { body: { action: "public_form", slug } })
+      .then(({ data }) => {
+        if (!cancelled && data?.ok) setArt({ logo: data.logo ?? null, banner: data.banner ?? null });
+      })
+      .catch(() => {
+        /* no branding; keep the plain look */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
 
   useEffect(() => {
     supabase.rpc("get_public_form", { p_slug: slug }).then(({ data }) => {
@@ -77,14 +93,24 @@ export default function PublicForm() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="h-28 sm:h-36" style={{ backgroundColor: color }} />
-      <div className="mx-auto -mt-20 w-full max-w-lg px-4 pb-10 sm:-mt-24">
+      {art.banner ? (
+        <div className="h-40 w-full overflow-hidden sm:h-56" style={{ backgroundColor: color }}>
+          <img src={art.banner} alt="" className="h-full w-full object-cover" />
+        </div>
+      ) : (
+        <div className="h-28 sm:h-36" style={{ backgroundColor: color }} />
+      )}
+      <div className={`mx-auto w-full max-w-lg px-4 pb-10 ${art.banner ? "-mt-10 sm:-mt-12" : "-mt-20 sm:-mt-24"}`}>
         <div className="overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-slate-200">
           <div className="border-b border-slate-100 px-5 pt-6 pb-5 sm:px-6">
             <div className="mb-3 flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold" style={brand} aria-hidden>
-                {form.company_name.trim().charAt(0).toUpperCase()}
-              </div>
+              {art.logo ? (
+                <img src={art.logo} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover ring-1 ring-slate-200" />
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-semibold" style={brand} aria-hidden>
+                  {form.company_name.trim().charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="text-sm font-medium text-slate-600">{form.company_name}</div>
             </div>
             <h1 className="text-xl font-semibold text-slate-900 sm:text-2xl">{form.title}</h1>

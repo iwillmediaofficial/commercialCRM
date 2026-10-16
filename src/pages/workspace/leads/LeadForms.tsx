@@ -4,6 +4,7 @@ import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
 import { date } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Field, Input, Modal, Select, Spinner, Textarea } from "../../../components/ui";
+import { ImagePicker } from "../../../components/Files";
 import { FIELD_TYPES, SLUG_RE, SOURCES, parseFields, safeColor, toKey, toSlug, type FieldType, type FormField } from "./leadShared";
 
 type LeadForm = Tables<"lead_forms">;
@@ -110,6 +111,7 @@ export default function LeadForms() {
           form={editing === "new" ? null : editing}
           readOnly={!canEdit}
           onClose={() => setEditing(null)}
+          onBranding={(id, patch) => setForms((fs) => (fs ?? []).map((x) => (x.id === id ? { ...x, ...patch } : x)))}
           onSaved={() => {
             setEditing(null);
             load();
@@ -120,7 +122,21 @@ export default function LeadForms() {
   );
 }
 
-function FormEditor({ form, readOnly, onClose, onSaved }: { form: LeadForm | null; readOnly: boolean; onClose: () => void; onSaved: () => void }) {
+type Branding = { logo_path?: string | null; banner_path?: string | null };
+
+function FormEditor({
+  form,
+  readOnly,
+  onClose,
+  onSaved,
+  onBranding,
+}: {
+  form: LeadForm | null;
+  readOnly: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+  onBranding: (id: string, patch: Branding) => void;
+}) {
   const { workspace } = useWorkspace();
   const { session } = useAuth();
   const [v, setV] = useState({
@@ -137,6 +153,19 @@ function FormEditor({ form, readOnly, onClose, onSaved }: { form: LeadForm | nul
   const [optionText, setOptionText] = useState<string[]>(() => parseFields(form?.fields).map((f) => (f.options ?? []).join(", ")));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [logoPath, setLogoPath] = useState<string | null>(form?.logo_path ?? null);
+  const [bannerPath, setBannerPath] = useState<string | null>(form?.banner_path ?? null);
+
+  // Logo and banner save straight away (the form must exist first).
+  async function saveBranding(patch: Branding) {
+    if (!form) return;
+    setError("");
+    const { error } = await supabase.from("lead_forms").update(patch).eq("workspace_id", workspace.id).eq("id", form.id);
+    if (error) return setError(error.message);
+    if ("logo_path" in patch) setLogoPath(patch.logo_path ?? null);
+    if ("banner_path" in patch) setBannerPath(patch.banner_path ?? null);
+    onBranding(form.id, patch);
+  }
 
   const sources = SOURCES.includes(v.default_source) ? SOURCES : [...SOURCES, v.default_source];
 
@@ -274,10 +303,37 @@ function FormEditor({ form, readOnly, onClose, onSaved }: { form: LeadForm | nul
             </label>
           </div>
 
-          <div>
-            <span className="mb-1 block text-sm font-medium text-slate-700">Logo and banner</span>
-            <p className="text-xs text-slate-500">File uploads arrive with file storage. Until then the form shows your company name and brand colour.</p>
-          </div>
+          {form ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ImagePicker
+                workspaceId={workspace.id}
+                entityType="lead_form"
+                entityId={form.id}
+                label="Form logo"
+                value={logoPath}
+                disabled={readOnly}
+                onChange={(key) => saveBranding({ logo_path: key })}
+              />
+              <ImagePicker
+                workspaceId={workspace.id}
+                entityType="lead_form"
+                entityId={form.id}
+                label="Banner (wide image at the top)"
+                shape="wide"
+                value={bannerPath}
+                disabled={readOnly}
+                onChange={(key) => saveBranding({ banner_path: key })}
+              />
+              <p className="text-xs text-slate-500 sm:col-span-2">
+                Saved right away. With no form logo, your company logo is used.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <span className="mb-1 block text-sm font-medium text-slate-700">Logo and banner</span>
+              <p className="text-xs text-slate-500">Save the form first, then add a logo and banner.</p>
+            </div>
+          )}
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-2">

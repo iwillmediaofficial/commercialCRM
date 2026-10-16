@@ -3,6 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import type { Person } from "../../../lib/members";
 import { date, inr } from "../../../lib/format";
+import { Attachments } from "../../../components/Files";
 import { Alert, Badge, Button, Drawer, Field, Input, Select, Textarea } from "../../../components/ui";
 import { announceTimerChange, hours } from "../time/timeUtil";
 import {
@@ -315,10 +316,21 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
           )}
         </div>
 
-        <div>
-          <span className="mb-1 block text-sm font-medium text-slate-700">Attachments</span>
-          <p className="text-xs text-slate-500">File uploads arrive with file storage.</p>
-        </div>
+        {item ? (
+          <Attachments
+            workspaceId={workspace.id}
+            entityType="work_item"
+            entityId={item.id}
+            title="Attachments"
+            canUpload={canWrite && (isAdmin || assignedToMe)}
+            canDelete={(file) => canWrite && (file.uploaded_by === me || isAdmin)}
+          />
+        ) : (
+          <div>
+            <span className="mb-1 block text-sm font-medium text-slate-700">Attachments</span>
+            <p className="text-xs text-slate-500">Create the item first, then add files to it.</p>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
           <div>

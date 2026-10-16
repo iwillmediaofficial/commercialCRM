@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase, type Tables } from "../../lib/supabase";
+import { fileUrl } from "../../lib/files";
 import { MODE_LABEL, PERIOD_LABEL, inr } from "../../lib/format";
 import { Alert, Button, Card, Select } from "../../components/ui";
 
@@ -7,6 +8,17 @@ type Row = Tables<"renewal_requests"> & {
   workspace: Pick<Tables<"workspaces">, "name" | "owner_name" | "owner_email" | "owner_phone"> | null;
   plan: { name: string } | null;
 };
+
+// Open the tab first so pop-up blockers allow it, then point it at the signed link.
+async function viewReceipt(key: string) {
+  const tab = window.open("", "_blank");
+  const url = await fileUrl({ key });
+  if (url && tab) tab.location.href = url;
+  else {
+    tab?.close();
+    if (!url) alert("Couldn't open the receipt. Try again.");
+  }
+}
 
 export default function Renewals() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -86,7 +98,13 @@ export default function Renewals() {
                   <td className="py-2">
                     {MODE_LABEL[r.payment_mode]}
                     {r.reference_no && <div className="text-xs text-slate-500">UTR {r.reference_no}</div>}
-                    {r.receipt_path && <div className="text-xs text-slate-500">Receipt attached</div>}
+                    {r.receipt_path && (
+                      <div>
+                        <button type="button" className="text-xs text-indigo-600 hover:underline" onClick={() => viewReceipt(r.receipt_path!)}>
+                          View receipt
+                        </button>
+                      </div>
+                    )}
                     {r.note && <div className="text-xs text-slate-500">“{r.note}”</div>}
                   </td>
                   <td className="py-2">{new Date(r.created_at).toLocaleString()}</td>
