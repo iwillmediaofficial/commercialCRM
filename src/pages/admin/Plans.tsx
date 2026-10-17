@@ -80,6 +80,9 @@ function PlanEditor({ plan, companies, onSaved }: { plan: Draft; companies?: num
   async function save() {
     setMsg(null);
     if (!p.name.trim()) return setMsg({ tone: "error", text: "Give the plan a name." });
+    if (PRICE_FIELDS.some(([k]) => p[k] != null && Number(p[k]) < 0)) return setMsg({ tone: "error", text: "Prices can't be negative." });
+    if (p.staff_limit != null && !(p.staff_limit >= 1)) return setMsg({ tone: "error", text: "Staff seats must be 1 or more. Leave it empty for unlimited." });
+    if (p.client_limit != null && !(p.client_limit >= 1)) return setMsg({ tone: "error", text: "Clients must be 1 or more. Leave it empty for unlimited." });
     const { id, ...fields } = p;
     const row = { ...fields, name: fields.name.trim(), description: fields.description?.trim() || null };
     const { error } = id

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
-import { downloadCsv, inr } from "../../../lib/format";
+import { downloadCsv, inr, toCollectLabel } from "../../../lib/format";
 import { Alert, Button, Card, Empty, Input, Spinner } from "../../../components/ui";
 import { addMonths, clientLedger, clientMonth, currentMonth, monthLabel, monthOf, totalRow, type MonthRow } from "./adFundMath";
 import { CollectionModal, UploadModal, type Adjustment, type Client, type Collection, type Upload } from "./AdFundModals";
@@ -196,7 +196,7 @@ export default function AdFunds() {
                         const v = row[k] as number;
                         return (
                           <td key={k} className={`${cell} ${neg(v)} ${k === "toCollect" && v > 0 ? "font-semibold text-amber-700" : ""} ${k === "unusedThisMonth" ? "font-semibold" : ""} ${v === 0 ? "text-slate-300" : ""}`}>
-                            {k === "target" && !row.started ? <span title="Not counted: before this client's first ad fund entry">{inr(client.monthly_ad_target)}*</span> : inr(v)}
+                            {k === "target" && !row.started ? <span title="Not counted: before this client's first ad fund entry">{inr(client.monthly_ad_target)}*</span> : k === "toCollect" ? toCollectLabel(v) : inr(v)}
                           </td>
                         );
                       })}

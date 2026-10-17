@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router";
 import { useAuth } from "../lib/auth";
+import { supabase } from "../lib/supabase";
 import { Card } from "../components/ui";
 import { TopBar } from "../components/TopBar";
 import { productName, useSiteInfo } from "../lib/site";
@@ -9,6 +11,12 @@ import { productName, useSiteInfo } from "../lib/site";
 export default function Home() {
   const { memberships, isPlatformAdmin } = useAuth();
   const info = useSiteInfo();
+  // Companies where an admin has switched this person off.
+  const [switchedOff, setSwitchedOff] = useState<string[]>([]);
+  useEffect(() => {
+    if (memberships.length) return;
+    supabase.rpc("my_inactive_companies").then(({ data }) => setSwitchedOff((data ?? []).map((r) => r.name)));
+  }, [memberships.length]);
 
   if (memberships.length === 1 && !isPlatformAdmin) {
     return <Navigate to={`/w/${memberships[0].workspace.slug}`} replace />;
@@ -19,7 +27,13 @@ export default function Home() {
     <>
       <TopBar title={productName(info)} />
       <main className="mx-auto max-w-xl space-y-4 px-4 py-10">
-        {memberships.length === 0 ? (
+        {memberships.length === 0 && switchedOff.length > 0 ? (
+          <Card title="Access switched off">
+            <p className="text-sm text-slate-600">
+              Your access to {switchedOff.join(", ")} was switched off by your company admin. Ask them to switch it back on.
+            </p>
+          </Card>
+        ) : memberships.length === 0 ? (
           <Card title="No company yet">
             <p className="text-sm text-slate-600">
               Your account is not part of any company. Ask your company admin for a PIN, then{" "}

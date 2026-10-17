@@ -128,6 +128,10 @@ export default function Team() {
   const openInvites = pins.filter((p) => p.purpose === "signup" && p.role !== "owner").length;
   const seatsFull = !!plan?.staff_limit && active + openInvites >= plan.staff_limit;
   const meMember = members.find((m) => m.user_id === me);
+  const used = active + openInvites;
+  const seatLabel =
+    `${used}${plan?.staff_limit ? ` of ${plan.staff_limit}` : ""} ${used === 1 && !plan?.staff_limit ? "seat" : "seats"} used` +
+    (openInvites ? `, ${openInvites} waiting for sign-up` : "");
 
   const q = search.trim().toLowerCase();
   const shown = members.filter(
@@ -149,7 +153,7 @@ export default function Team() {
       )}
 
       <Card
-        title={`Team (${active}${plan?.staff_limit ? ` of ${plan.staff_limit}` : ""} seats used)`}
+        title={`Team (${seatLabel})`}
         actions={meMember && <Button variant="secondary" onClick={() => setEditingSelf(true)}>Edit my profile</Button>}
       >
         {members.length > 5 && (
@@ -247,7 +251,7 @@ export default function Team() {
             <Alert tone="warning">
               All {plan?.staff_limit} seats on your plan are taken
               {openInvites > 0 ? ` (${openInvites} by unused PIN${openInvites > 1 ? "s" : ""} below)` : ""}.
-              To add someone, deactivate a member, revoke an unused PIN, or upgrade your plan on the Billing page.
+              To add someone, deactivate a member, revoke an unused PIN, or upgrade your plan on the Subscription page.
             </Alert>
           ) : (
           <form

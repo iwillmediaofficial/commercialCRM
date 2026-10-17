@@ -49,6 +49,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
   async function save(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (!v.name.trim()) return setError("Enter the contact's name.");
     const score = v.score === "" ? null : Number(v.score);
     if (score != null && (score < 0 || score > 100)) return setError("Score must be between 0 and 100.");
     const row = {

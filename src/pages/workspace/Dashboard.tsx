@@ -119,13 +119,14 @@ export default function Dashboard() {
       hasModule("leads") ? rows(supabase.from("leads").select("created_at").eq("workspace_id", ws).gte("created_at", sixAgo)) : none,
       hasModule("leads")
         ? Promise.resolve(supabase.from("leads").select("id", { count: "exact", head: true }).eq("workspace_id", ws)
-            .eq("stage", "won").gte("updated_at", `${thisMonth}-01`)).then((r) => r.count ?? 0)
+            .eq("stage", "won").gte("won_at", `${thisMonth}-01`)).then((r) => r.count ?? 0)
         : Promise.resolve(0),
       showMoney
         ? rows(supabase.from("invoices_with_status").select("display_status, balance_due, total, issue_date")
             .eq("workspace_id", ws).neq("status", "cancelled"))
         : none,
-      showMoney ? rows(supabase.from("invoice_payments").select("amount, paid_on").eq("workspace_id", ws).gte("paid_on", yearAgo)) : none,
+      showMoney ? rows(supabase.from("invoice_payments").select("amount, paid_on, invoices!inner(status)").eq("workspace_id", ws)
+          .neq("invoices.status", "cancelled").gte("paid_on", yearAgo)) : none,
       admin ? rows(supabase.from("activity_logs").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(8)) : none,
     ]);
 

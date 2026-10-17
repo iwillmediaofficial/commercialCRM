@@ -810,6 +810,7 @@ export type Database = {
           stage: string
           updated_at: string
           value: number | null
+          won_at: string | null
           workspace_id: string
         }
         Insert: {
@@ -833,6 +834,7 @@ export type Database = {
           stage?: string
           updated_at?: string
           value?: number | null
+          won_at?: string | null
           workspace_id: string
         }
         Update: {
@@ -856,6 +858,7 @@ export type Database = {
           stage?: string
           updated_at?: string
           value?: number | null
+          won_at?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1573,6 +1576,7 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           recurring_lead_days: number
+          staff_manual_time: boolean
           state: string | null
           updated_at: string
           website: string | null
@@ -1599,6 +1603,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           recurring_lead_days?: number
+          staff_manual_time?: boolean
           state?: string | null
           updated_at?: string
           website?: string | null
@@ -1625,6 +1630,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           recurring_lead_days?: number
+          staff_manual_time?: boolean
           state?: string | null
           updated_at?: string
           website?: string | null
@@ -1656,6 +1662,7 @@ export type Database = {
           plan_id: string
           slug: string
           state: Database["public"]["Enums"]["subscription_state"]
+          state_before_suspend: Database["public"]["Enums"]["subscription_state"] | null
           updated_at: string
           valid_until: string
         }
@@ -1674,6 +1681,7 @@ export type Database = {
           plan_id: string
           slug: string
           state?: Database["public"]["Enums"]["subscription_state"]
+          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
           updated_at?: string
           valid_until: string
         }
@@ -1692,6 +1700,7 @@ export type Database = {
           plan_id?: string
           slug?: string
           state?: Database["public"]["Enums"]["subscription_state"]
+          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
           updated_at?: string
           valid_until?: string
         }
@@ -1958,6 +1967,7 @@ export type Database = {
         }
         Returns: Json
       }
+      my_inactive_companies: { Args: never; Returns: { name: string }[] }
       public_site_info: { Args: never; Returns: Json }
       reject_renewal: {
         Args: { p_reason: string; p_request_id: string }
@@ -1967,6 +1977,16 @@ export type Database = {
       run_recurring_billing: {
         Args: { p_workspace_id: string }
         Returns: number
+      }
+      save_invoice: {
+        Args: {
+          p_header: Json
+          p_invoice_id: string | null
+          p_items: Json
+          p_mark_sent?: boolean
+          p_workspace_id: string
+        }
+        Returns: string
       }
       start_timer: {
         Args: {

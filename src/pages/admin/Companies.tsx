@@ -59,13 +59,14 @@ export default function Companies() {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
         {[
           ["", "All companies", real.length],
           ["active", "Active", count("active")],
           ["trial", "On trial", count("trial")],
           ["grace", "In grace", count("grace")],
-          ["expired", "Expired", count("expired") + count("suspended")],
+          ["expired", "Expired", count("expired")],
+          ["suspended", "Suspended", count("suspended")],
         ].map(([key, label, n]) => (
           <button
             key={label}
@@ -190,15 +191,17 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 function Subscription({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[]; onChanged: () => void }) {
   const [days, setDays] = useState("0");
   const [planId, setPlanId] = useState(w.plan_id);
+  // A payment recorded elsewhere can change the plan; follow it.
+  useEffect(() => setPlanId(w.plan_id), [w.plan_id]);
   const [note, setNote] = useState("");
   const [msg, setMsg] = useState<{ tone: "error" | "success"; text: string } | null>(null);
 
-  async function update(state?: "active" | "suspended") {
+  async function update(state?: "trial" | "active" | "suspended") {
     setMsg(null);
     const { error } = await supabase.rpc("admin_update_subscription", {
       p_workspace_id: w.id,
       p_add_days: Number(days) || 0,
-      p_plan_id: planId,
+      p_plan_id: planId !== w.plan_id ? planId : undefined,
       p_state: state,
       p_note: note || undefined,
     });
@@ -229,7 +232,9 @@ function Subscription({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[
       <div className="mt-3 flex flex-wrap gap-2">
         <Button onClick={() => update()}>Save changes</Button>
         {w.state === "suspended" ? (
-          <Button variant="secondary" onClick={() => update("active")}>Unsuspend</Button>
+          <Button variant="secondary" onClick={() => update(w.state_before_suspend ?? "active")}>
+            Unsuspend{w.state_before_suspend === "trial" ? " (back to trial)" : ""}
+          </Button>
         ) : (
           <Button variant="danger" onClick={() => window.confirm(`Suspend ${w.name}? Their team is locked out and public forms stop.`) && update("suspended")}>
             Suspend
@@ -321,6 +326,7 @@ function Details({ w, onChanged }: { w: Row; onChanged: () => void }) {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
+    if (!form.name.trim()) return setMsg({ tone: "error", text: "Enter the company name." });
     const { error } = await supabase
       .from("workspaces")
       .update({
@@ -460,6 +466,7 @@ function NewCompany({ plans, onCreated }: { plans: Tables<"plans">[]; onCreated:
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (!form.name.trim()) return setError("Enter the company name.");
     const slug = form.slug.replace(/-+$/, "");
     if (!SLUG_OK.test(slug)) {
       return setError("Web address must be 3 to 48 characters: lowercase letters, numbers and dashes, not starting or ending with a dash.");

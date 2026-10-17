@@ -263,7 +263,7 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
                 {est > 0 && <> of {hours(est * 3600)} estimated</>}
                 {role && !isAdmin && <span className="text-xs text-slate-500"> (your time)</span>}
               </div>
-              {canWrite && role && (
+              {canWrite && role && (isAdmin || assignedToMe) && (
                 <Button variant="secondary" className="!py-1" onClick={startTimer}>▶ Start timer</Button>
               )}
             </div>

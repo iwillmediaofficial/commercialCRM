@@ -234,6 +234,7 @@ function ClientForm({ client, onClose, onSaved }: { client: Client | null; onClo
   async function save(e: FormEvent) {
     e.preventDefault();
     setError("");
+    if (!form.company_name.trim()) return setError("Enter the client's company name.");
     setSaving(true);
     const row = {
       company_name: form.company_name.trim(),

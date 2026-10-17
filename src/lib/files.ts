@@ -176,3 +176,29 @@ export function formatBytes(n: number) {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
+
+// The Super Admin's UPI QR code, shown on every company's Subscription page.
+export async function uploadUpiQr(file: File): Promise<{ ok: true; key: string } | { ok: false; message: string }> {
+  const body = new FormData();
+  body.append("entity_type", "upi_qr");
+  body.append("file", await shrinkImage(file, 1000));
+  const { data, error } = await supabase.functions.invoke("files", { body });
+  if (data?.ok) return { ok: true, key: String(data.key) };
+  return { ok: false, message: data?.message ?? (await errorMessage(error, "The upload didn't go through. Try again.")) };
+}
+
+export function useUpiQr(path: string | null | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    setUrl(null);
+    if (!path) return;
+    let live = true;
+    supabase.functions.invoke("files", { body: { action: "upi_qr" } }).then(({ data }) => {
+      if (live) setUrl(data?.url ?? null);
+    });
+    return () => {
+      live = false;
+    };
+  }, [path]);
+  return url;
+}

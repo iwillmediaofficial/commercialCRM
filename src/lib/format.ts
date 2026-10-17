@@ -29,7 +29,14 @@ export const MODULES: ["leads" | "work" | "invoicing" | "ad_funds", string][] = 
 ];
 
 export function inr(n: number | string | null | undefined) {
-  return `₹${Number(n ?? 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const v = Number(n ?? 0);
+  const text = `₹${Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return v < 0 ? `-${text}` : text;
+}
+
+// Money still to collect; a negative balance means the client paid ahead.
+export function toCollectLabel(n: number) {
+  return n < 0 ? `${inr(-n)} advance` : inr(n);
 }
 
 export function date(d: string | null | undefined) {

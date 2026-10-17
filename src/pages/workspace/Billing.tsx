@@ -4,7 +4,7 @@ import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { useWorkspace } from "../../lib/workspace";
 import { StatusBadge } from "../../lib/status";
-import { MAX_FILE_MB, uploadFile } from "../../lib/files";
+import { MAX_FILE_MB, uploadFile, useUpiQr } from "../../lib/files";
 import { PERIOD_LABEL, date, inr } from "../../lib/format";
 import { Alert, Button, Card, Field, Input, Select } from "../../components/ui";
 
@@ -17,16 +17,24 @@ const PERIODS = [
 type Period = (typeof PERIODS)[number][0];
 type PaymentMode = Tables<"renewal_requests">["payment_mode"];
 type SubPayment = Tables<"subscription_payments"> & { plan: { name: string } | null };
+type Plan = Tables<"plans">;
+type Request = Tables<"renewal_requests"> & { plan: { name: string } | null };
 
 // Subscription status, how to pay, and a form to tell the Super Admin you paid.
 export default function Billing() {
   const { workspace, plan, status, isAdmin } = useWorkspace();
   const { session } = useAuth();
   const [settings, setSettings] = useState<Tables<"platform_settings"> | null>(null);
-  const [requests, setRequests] = useState<Tables<"renewal_requests">[]>([]);
+  const [requests, setRequests] = useState<Request[]>([]);
   const [payments, setPayments] = useState<SubPayment[]>([]);
-  const available = PERIODS.filter(([, , k]) => plan?.[k] != null);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  // Renew on the current plan, or pick another one to upgrade or change.
+  const [planId, setPlanId] = useState("");
+  const sellable = plans.filter((p) => PERIODS.some(([, , k]) => p[k] != null));
+  const chosenPlan = sellable.find((p) => p.id === planId) ?? sellable.find((p) => p.id === plan?.id) ?? sellable[0];
+  const available = PERIODS.filter(([, , k]) => chosenPlan?.[k] != null);
   const [period, setPeriod] = useState<Period | "">("");
+  const qr = useUpiQr(settings?.upi_qr_path);
   const [mode, setMode] = useState<PaymentMode>("upi");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
@@ -36,9 +44,9 @@ export default function Billing() {
   const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(async () => {
-    const [{ data: s }, { data: r }, { data: p }] = await Promise.all([
+    const [{ data: s }, { data: r }, { data: p }, { data: pl }] = await Promise.all([
       supabase.from("platform_settings").select("*").maybeSingle(),
-      supabase.from("renewal_requests").select("*").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
+      supabase.from("renewal_requests").select("*, plan:plans(name)").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
       // Only owners and admins can read these; others get an empty list.
       isAdmin
         ? supabase
@@ -48,22 +56,24 @@ export default function Billing() {
             .order("paid_on", { ascending: false })
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] }),
+      supabase.from("plans").select("*").eq("is_active", true).order("sort_order").order("name"),
     ]);
     setSettings(s);
-    setRequests(r ?? []);
+    setPlans(pl ?? []);
+    setRequests((r ?? []) as Request[]);
     setPayments((p ?? []) as SubPayment[]);
   }, [workspace.id, isAdmin]);
   useEffect(() => {
     load();
   }, [load]);
 
-  const chosen = (period || available[0]?.[0]) as Period | undefined;
-  const price = chosen ? plan?.[PERIODS.find((p) => p[0] === chosen)![2]] : null;
+  const chosen = (available.some(([v]) => v === period) ? period : available[0]?.[0]) as Period | undefined;
+  const price = chosen ? chosenPlan?.[PERIODS.find((p) => p[0] === chosen)![2]] : null;
   const pending = requests.some((r) => r.status === "pending");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!chosen || !plan) return;
+    if (!chosen || !chosenPlan) return;
     setMessage(null);
     setSending(true);
     let receiptPath: string | null = null;
@@ -81,7 +91,7 @@ export default function Billing() {
     }
     const { error } = await supabase.from("renewal_requests").insert({
       workspace_id: workspace.id,
-      plan_id: plan.id,
+      plan_id: chosenPlan.id,
       period: chosen,
       amount: Number(price ?? 0), // the database sets the real amount from the plan
       payment_mode: mode,
@@ -113,7 +123,7 @@ export default function Billing() {
         </div>
       </Card>
 
-      {settings && (settings.upi_id || settings.bank_account_number) && (
+      {settings && (settings.upi_id || settings.bank_account_number || settings.upi_qr_path) && (
         <Card title="How to pay">
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             {settings.upi_id && (<><dt className="text-slate-500">UPI</dt><dd className="font-mono">{settings.upi_id}</dd></>)}
@@ -123,6 +133,12 @@ export default function Billing() {
             {settings.bank_ifsc && (<><dt className="text-slate-500">IFSC</dt><dd className="font-mono">{settings.bank_ifsc}</dd></>)}
           </dl>
           {settings.payment_note && <p className="mt-3 text-sm text-slate-600">{settings.payment_note}</p>}
+          {qr && (
+            <div className="mt-3">
+              <img src={qr} alt="UPI QR code" className="h-44 w-44 rounded-lg bg-white object-contain ring-1 ring-slate-200" />
+              <p className="mt-1 text-xs text-slate-500">Scan with any UPI app.</p>
+            </div>
+          )}
         </Card>
       )}
 
@@ -132,15 +148,33 @@ export default function Billing() {
         ) : status === "suspended" ? (
           <p className="text-sm text-slate-500">This company is suspended. Contact the Super Admin to renew.</p>
         ) : available.length === 0 ? (
-          <p className="text-sm text-slate-500">Your plan's price is set by the Super Admin. Contact them to renew.</p>
+          <p className="text-sm text-slate-500">No plan has an online price yet. Contact the Super Admin to renew.</p>
         ) : pending ? (
           <Alert tone="info">Your last payment is waiting for confirmation.</Alert>
         ) : (
           <form onSubmit={submit} className="grid gap-3 sm:grid-cols-2">
+            {sellable.length > 1 && (
+              <div className="sm:col-span-2">
+                <Field
+                  label="Plan"
+                  hint={chosenPlan && chosenPlan.id !== plan?.id ? "The Super Admin moves you to this plan when they confirm the payment." : undefined}
+                >
+                  <Select value={chosenPlan?.id} onChange={(e) => setPlanId(e.target.value)}>
+                    {sellable.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                        {p.id === plan?.id ? " (current plan)" : ""} · {p.staff_limit ? `${p.staff_limit} seats` : "unlimited seats"} ·{" "}
+                        {p.client_limit ? `${p.client_limit} clients` : "unlimited clients"}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            )}
             <Field label="Period">
               <Select value={chosen} onChange={(e) => setPeriod(e.target.value as Period)}>
                 {available.map(([v, label, k]) => (
-                  <option key={v} value={v}>{label} · ₹{Number(plan?.[k]).toLocaleString("en-IN")}</option>
+                  <option key={v} value={v}>{label} · ₹{Number(chosenPlan?.[k]).toLocaleString("en-IN")}</option>
                 ))}
               </Select>
             </Field>
@@ -213,7 +247,7 @@ export default function Billing() {
           <ul className="divide-y divide-slate-100 text-sm">
             {requests.map((r) => (
               <li key={r.id} className="flex justify-between py-2">
-                <span>{new Date(r.created_at).toLocaleDateString()} · {r.period.replace("_", " ")} · ₹{Number(r.amount).toLocaleString("en-IN")}</span>
+                <span>{new Date(r.created_at).toLocaleDateString()} · {r.plan?.name ? `${r.plan.name} · ` : ""}{r.period.replace("_", " ")} · ₹{Number(r.amount).toLocaleString("en-IN")}</span>
                 <span className="capitalize">{r.status}{r.admin_note && ` · ${r.admin_note}`}</span>
               </li>
             ))}

@@ -15,7 +15,9 @@ type PublicFormData = {
 // The page a company shares with prospects. No sign-in; leads go straight into
 // that company's Leads list.
 export default function PublicForm() {
-  const { slug = "" } = useParams();
+  const { slug: rawSlug = "" } = useParams();
+  // Links are matched without regard to capitals.
+  const slug = rawSlug.trim().toLowerCase();
   const [form, setForm] = useState<PublicFormData | null | undefined>(undefined);
   const [values, setValues] = useState({ name: "", phone: "", email: "" });
   const [answers, setAnswers] = useState<Record<string, string>>({});

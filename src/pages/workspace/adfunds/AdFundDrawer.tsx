@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
-import { date, inr, MODE_LABEL } from "../../../lib/format";
+import { date, inr, MODE_LABEL, toCollectLabel } from "../../../lib/format";
 import { Alert, Badge, Button, Drawer, Empty } from "../../../components/ui";
 import { clientLedger, currentMonth, monthLabel, monthOf, PAYER_LABEL, type PayerType } from "./adFundMath";
 import { ADJ_LABEL, AdjustmentModal, platformName, type Adjustment, type Client, type Collection, type Upload } from "./AdFundModals";
@@ -85,7 +85,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
       <div className="mb-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
         <Stat label="Monthly target" value={inr(client.monthly_ad_target)} />
         <Stat label={`Unused end of ${monthLabel(month)}`} value={inr(now?.unusedThisMonth ?? 0)} tone={neg(now?.unusedThisMonth ?? 0)} />
-        <Stat label="To collect now" value={inr(ledger[ledger.length - 1]?.toCollect ?? 0)} tone={(ledger[ledger.length - 1]?.toCollect ?? 0) > 0 ? "text-amber-700" : ""} />
+        <Stat label="To collect now" value={toCollectLabel(ledger[ledger.length - 1]?.toCollect ?? 0)} tone={(ledger[ledger.length - 1]?.toCollect ?? 0) > 0 ? "text-amber-700" : ""} />
         <Stat label="Platforms" value={client.ad_platforms.length ? client.ad_platforms.map(platformName).join(", ") : "None set"} />
       </div>
 
