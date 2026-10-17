@@ -1,25 +1,18 @@
 import { useEffect, useState } from "react";
-import { NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
-import { TopBar } from "../../components/TopBar";
-
-const tabs = [
-  { to: "/admin", label: "Companies", end: true },
-  { to: "/admin/renewals", label: "Renewals" },
-  { to: "/admin/payments", label: "Payments" },
-  { to: "/admin/plans", label: "Plans" },
-  { to: "/admin/audit", label: "Audit log" },
-  { to: "/admin/settings", label: "Settings" },
-  { to: "/admin/errors", label: "Errors" },
-];
+import { productName, useSiteInfo } from "../../lib/site";
+import { AppShell, UserMenu, type NavGroup } from "../../components/AppShell";
+import { Icon } from "../../components/icons";
 
 export default function AdminLayout() {
   const { isPlatformAdmin } = useAuth();
   const { pathname } = useLocation();
+  const info = useSiteInfo();
   const [pending, setPending] = useState(0);
 
-  // Pending renewals badge; refreshed whenever you move between tabs.
+  // Pending renewals badge; refreshed whenever you move between pages.
   useEffect(() => {
     if (!isPlatformAdmin) return;
     supabase
@@ -30,31 +23,42 @@ export default function AdminLayout() {
   }, [isPlatformAdmin, pathname]);
 
   if (!isPlatformAdmin) return <Navigate to="/" replace />;
+
+  const groups: NavGroup[] = [
+    {
+      label: "Customers",
+      items: [
+        { to: "/admin", label: "Companies", icon: "building", end: true },
+        { to: "/admin/renewals", label: "Renewals", icon: "refresh", badge: pending },
+        { to: "/admin/payments", label: "Payments", icon: "wallet" },
+        { to: "/admin/plans", label: "Plans", icon: "layers" },
+      ],
+    },
+    {
+      label: "Platform",
+      items: [
+        { to: "/admin/audit", label: "Audit log", icon: "log" },
+        { to: "/admin/errors", label: "Errors", icon: "alert" },
+        { to: "/admin/settings", label: "Settings", icon: "settings" },
+      ],
+    },
+  ];
+
+  const brand = (
+    <div className="flex items-center gap-3 p-1.5">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-brand">
+        <Icon name="shield" className="h-5 w-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block truncate text-[15px] font-semibold text-white">{productName(info)}</span>
+        <span className="block text-xs text-slate-400">Super Admin</span>
+      </span>
+    </div>
+  );
+
   return (
-    <>
-      <TopBar title="Super Admin" />
-      <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-4">
-          {tabs.map((t) => (
-            <NavLink
-              key={t.to}
-              to={t.to}
-              end={t.end}
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 whitespace-nowrap border-b-2 py-2 text-sm ${isActive ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-600"}`
-              }
-            >
-              {t.label}
-              {t.label === "Renewals" && pending > 0 && (
-                <span className="rounded-full bg-red-600 px-1.5 text-xs font-medium text-white">{pending}</span>
-              )}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
-      <main className="mx-auto max-w-6xl space-y-4 p-4">
-        <Outlet />
-      </main>
-    </>
+    <AppShell brand={brand} groups={groups} right={<UserMenu roleLabel="Super Admin" />}>
+      <Outlet />
+    </AppShell>
   );
 }

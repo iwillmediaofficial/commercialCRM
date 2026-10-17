@@ -7,7 +7,7 @@ import { hours, toLocalInput } from "./timeUtil";
 
 type Opt = { id: string; label: string; client_id?: string | null };
 
-// Admins: add a manual time entry or fix an existing one.
+// Admins (and staff, when the company allows it): add a manual time entry or fix an existing one.
 export function EntryModal({ entry, people, items, clients, me, onClose, onSaved }: {
   entry: Tables<"time_entries"> | null;
   people: Person[];

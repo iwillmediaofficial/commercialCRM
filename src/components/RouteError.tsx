@@ -15,8 +15,10 @@ export default function RouteError() {
     // exist. Reload once to pick up the new version instead of showing an error.
     if (/dynamically imported module|Importing a module script failed/i.test(detail)) {
       try {
-        if (!sessionStorage.getItem("reloaded-for-update")) {
-          sessionStorage.setItem("reloaded-for-update", "1");
+        // Once a minute at most, so a broken build can't loop, but every later update still reloads.
+        const last = Number(sessionStorage.getItem("reloaded-for-update")) || 0;
+        if (Date.now() - last > 60_000) {
+          sessionStorage.setItem("reloaded-for-update", String(Date.now()));
           window.location.reload();
           return;
         }

@@ -207,7 +207,7 @@ function InvoicesTab({ clientId }: { clientId: string }) {
   const billed = live.reduce((s, i) => s + Number(i.total ?? 0), 0);
   const paid = live.reduce((s, i) => s + Number(i.amount_paid ?? 0), 0);
   const due = live.reduce((s, i) => s + Number(i.balance_due ?? 0), 0);
-  const numberOf = (id: string) => data.inv.find((i) => i.id === id)?.invoice_number ?? "";
+  const numberOf = (id: string) => data.inv.find((i) => i.id === id)?.invoice_number ?? "Draft";
 
   return (
     <div className="space-y-5">
@@ -239,7 +239,7 @@ function InvoicesTab({ clientId }: { clientId: string }) {
                   const [label, tone] = INVOICE_STATUS[i.display_status ?? ""] ?? [i.display_status ?? "", undefined];
                   return (
                     <tr key={i.id}>
-                      <td className="py-2 pr-2 font-medium whitespace-nowrap">{i.invoice_number}</td>
+                      <td className="py-2 pr-2 font-medium whitespace-nowrap">{i.invoice_number || "Draft"}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(i.issue_date)}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(i.due_date)}</td>
                       <td className="py-2 pr-2 text-right whitespace-nowrap">{inr(i.total)}</td>

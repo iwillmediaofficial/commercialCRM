@@ -39,6 +39,9 @@ export function StatusBadge({ status }: { status: string | null }) {
   return <Badge tone={STATUS_TONE[s] ?? STATUS_TONE.draft}>{STATUS_LABEL[s] ?? s}</Badge>;
 }
 
+// Drafts get their number when they are sent.
+export const invNo = (i: { invoice_number?: string | null }) => i.invoice_number || "Draft";
+
 // Local calendar dates as YYYY-MM-DD.
 export function todayIso() {
   return new Date().toLocaleDateString("en-CA");
@@ -172,13 +175,13 @@ export function InvoiceEditor({
   onSaved: (id: string) => void;
 }) {
   const { workspace } = useWorkspace();
-  const { session } = useAuth();
   const terms = settings?.default_payment_terms_days ?? 15;
   const taxDefault = String(settings?.default_tax_rate ?? 18);
   const blankItem = (): ItemDraft => ({ description: "", hsn_sac: "", quantity: "1", rate: "", tax_rate: taxDefault });
 
   const [loading, setLoading] = useState(!!invoiceId);
   const [status, setStatus] = useState<string>("draft");
+  const [paid, setPaid] = useState(0);
   const [form, setForm] = useState({
     client_id: defaultClientId ?? "",
     invoice_number: "",
@@ -191,8 +194,7 @@ export function InvoiceEditor({
   });
   const [dueTouched, setDueTouched] = useState(false);
   const [items, setItems] = useState<ItemDraft[]>([blankItem()]);
-  const [originalIds, setOriginalIds] = useState<string[]>([]);
-  // Set once a new invoice's header is inserted, so a retry after a line-item failure updates it instead of inserting a second invoice.
+  // Set once a new invoice is saved, so saving again updates it instead of adding a second one.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -210,6 +212,7 @@ export function InvoiceEditor({
         return;
       }
       setStatus(inv.status);
+      setPaid(Number(inv.amount_paid) || 0);
       setDueTouched(true);
       setForm({
         client_id: inv.client_id,
@@ -230,7 +233,6 @@ export function InvoiceEditor({
         tax_rate: String(i.tax_rate),
       }));
       setItems(rows.length ? rows : [blankItem()]);
-      setOriginalIds(rows.map((r) => r.id!));
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -257,93 +259,40 @@ export function InvoiceEditor({
     if (!filled.length) return setError("Add at least one line item with a description.");
     if (filled.some((i) => !(Number(i.quantity) > 0))) return setError("Quantity must be more than 0 on every line.");
     if (form.due_date < form.issue_date) return setError("Due date cannot be before the issue date.");
+    if (total < paid) return setError(`The new total (${inr(total)}) is less than what has already been paid (${inr(paid)}).`);
+    if (markSent && !(subtotal > 0)) return setError("Add at least one line with a rate above ₹0 before sending the invoice.");
     setBusy(true);
-    const header = {
-      client_id: form.client_id,
-      issue_date: form.issue_date,
-      due_date: form.due_date,
-      place_of_supply: form.place_of_supply.trim() || null,
-      notes: form.notes.trim() || null,
-      terms: form.terms.trim() || null,
-      discount_amount: discount,
-    };
-    let id = invoiceId ?? createdId;
-    if (!id) {
-      const { data, error } = await supabase
-        .from("invoices")
-        .insert({
-          ...header,
-          workspace_id: workspace.id,
-          invoice_number: form.invoice_number.trim() || null,
-          status: markSent ? "pending" : "draft",
-          created_by: session?.user.id ?? null,
-        })
-        .select("id")
-        .single();
-      if (error || !data) {
-        setBusy(false);
-        return setError(friendlyError(error?.message ?? "Could not save."));
-      }
-      id = data.id;
-      setCreatedId(data.id);
-      setStatus(markSent ? "pending" : "draft");
-    } else {
-      const { error } = await supabase
-        .from("invoices")
-        .update({
-          ...header,
-          ...(form.invoice_number.trim() ? { invoice_number: form.invoice_number.trim() } : {}),
-          ...(markSent && status === "draft" ? { status: "pending" } : {}),
-        })
-        .eq("workspace_id", workspace.id)
-        .eq("id", id);
-      if (error) {
-        setBusy(false);
-        return setError(friendlyError(error.message));
-      }
-    }
-
-    const keep = filled.filter((i) => i.id).map((i) => i.id!);
-    const removed = originalIds.filter((x) => !keep.includes(x));
-    if (removed.length) {
-      const { error } = await supabase.from("invoice_items").delete().eq("workspace_id", workspace.id).in("id", removed);
-      if (error) {
-        setBusy(false);
-        return setError(error.message);
-      }
-    }
-    const row = (i: ItemDraft, position: number) => ({
-      description: i.description.trim(),
-      hsn_sac: i.hsn_sac.trim() || null,
-      quantity: Number(i.quantity) || 1,
-      rate: Number(i.rate) || 0,
-      tax_rate: Number(i.tax_rate) || 0,
-      position,
+    // One database call: the invoice and all its lines save together, or nothing does.
+    const { data, error } = await supabase.rpc("save_invoice", {
+      p_workspace_id: workspace.id,
+      p_invoice_id: invoiceId ?? createdId ?? null,
+      p_header: {
+        client_id: form.client_id,
+        issue_date: form.issue_date,
+        due_date: form.due_date,
+        place_of_supply: form.place_of_supply.trim(),
+        notes: form.notes.trim(),
+        terms: form.terms.trim(),
+        discount_amount: discount,
+        invoice_number: form.invoice_number.trim(),
+      },
+      p_items: filled.map((i) => ({
+        id: i.id ?? null,
+        description: i.description.trim(),
+        hsn_sac: i.hsn_sac.trim(),
+        quantity: Number(i.quantity) || 1,
+        rate: Number(i.rate) || 0,
+        tax_rate: Number(i.tax_rate) || 0,
+      })),
+      p_mark_sent: markSent,
     });
-    for (const [pos, i] of filled.entries()) {
-      if (!i.id) continue;
-      const { error } = await supabase.from("invoice_items").update(row(i, pos)).eq("workspace_id", workspace.id).eq("id", i.id);
-      if (error) {
-        setBusy(false);
-        return setError(error.message);
-      }
-    }
-    const fresh = filled
-      .map((i, pos) => ({ i, pos }))
-      .filter(({ i }) => !i.id)
-      .map(({ i, pos }) => ({ ...row(i, pos), invoice_id: id!, workspace_id: workspace.id }));
-    if (fresh.length) {
-      const { error } = await supabase.from("invoice_items").insert(fresh);
-      if (error) {
-        setBusy(false);
-        return setError(error.message);
-      }
-    }
     setBusy(false);
-    onSaved(id!);
+    if (error || !data) return setError(friendlyError(error?.message ?? "Could not save."));
+    setCreatedId(data);
+    onSaved(data);
   }
 
-  const title = invoiceId ? `Edit invoice ${form.invoice_number}` : "New invoice";
+  const title = invoiceId ? `Edit invoice ${form.invoice_number || "(draft)"}` : "New invoice";
   if (loading)
     return (
       <Drawer title={title} onClose={onClose}>
@@ -514,6 +463,7 @@ export function PaymentModal({ invoice, onClose, onSaved }: { invoice: InvoiceRo
     setError("");
     const amount = Number(form.amount);
     if (!(amount > 0)) return setError("Enter an amount above zero.");
+    if (amount > balance) return setError(`This is more than the balance due (${inr(balance)}).`);
     setBusy(true);
     const { error } = await supabase.from("invoice_payments").insert({
       invoice_id: invoice.id!,
@@ -532,7 +482,7 @@ export function PaymentModal({ invoice, onClose, onSaved }: { invoice: InvoiceRo
 
   const over = Number(form.amount) > balance && balance > 0;
   return (
-    <Modal title={`Record payment · ${invoice.invoice_number}`} onClose={onClose}>
+    <Modal title={`Record payment · ${invNo(invoice)}`} onClose={onClose}>
       <form
         className="space-y-3"
         onSubmit={(e) => {
@@ -545,8 +495,8 @@ export function PaymentModal({ invoice, onClose, onSaved }: { invoice: InvoiceRo
           Total {inr(invoice.total)} · Paid {inr(invoice.amount_paid)} · <span className="font-medium text-slate-700">Balance {inr(balance)}</span>
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Amount (₹)" hint={over ? "This is more than the balance due." : undefined}>
-            <Input type="number" min="0.01" step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+          <Field label="Amount (₹)" hint={over ? "This is more than the balance due, so it can't be saved." : undefined}>
+            <Input type="number" min="0.01" max={balance || undefined} step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
           </Field>
           <Field label="Paid on">
             <Input type="date" required value={form.paid_on} onChange={(e) => setForm({ ...form, paid_on: e.target.value })} />
@@ -616,7 +566,7 @@ export function InvoiceDocument({
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold tracking-wide text-slate-700">TAX INVOICE</div>
-          <div className="mt-1">Invoice no: <span className="font-medium">{invoice.invoice_number}</span></div>
+          <div className="mt-1">Invoice no: <span className="font-medium">{invNo(invoice)}</span></div>
           <div>Date: {date(invoice.issue_date)}</div>
           <div>Due: {date(invoice.due_date)}</div>
           {invoice.period_start && (
@@ -755,7 +705,7 @@ function PrintModal(props: { invoice: InvoiceRow; items: Item[]; client: Client 
   const logoUrl = useFileUrl(logoKey);
   const logoLoading = !!logoKey && !logoUrl;
   return (
-    <Modal wide title={`Invoice ${props.invoice.invoice_number}`} onClose={props.onClose}>
+    <Modal wide title={`Invoice ${invNo(props.invoice)}`} onClose={props.onClose}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           Use Print, then choose “Save as PDF” to get a PDF.{logoLoading && " Loading your logo…"}
@@ -864,15 +814,16 @@ export function InvoiceView({
   if (mode === "print") return <PrintModal invoice={invoice} items={items} client={client} settings={settings} onClose={() => setMode("view")} />;
 
   async function setStatus(status: "pending" | "cancelled") {
-    if (status === "cancelled" && !confirm(`Cancel invoice ${invoice!.invoice_number}? It stays in your records but no longer counts as due.`)) return;
+    if (status === "cancelled" && !confirm(`Cancel invoice ${invNo(invoice!)}? It stays in your records but no longer counts as due.`)) return;
     setError("");
+    if (status === "pending" && !(Number(invoice!.subtotal) > 0)) return setError("Add at least one line with a rate above ₹0 before sending the invoice.");
     const { error } = await supabase.from("invoices").update({ status }).eq("workspace_id", workspace.id).eq("id", invoiceId);
     if (error) return setError(error.message);
     changed();
   }
 
   async function deleteDraft() {
-    if (!confirm(`Delete draft ${invoice!.invoice_number}? This cannot be undone.`)) return;
+    if (!confirm(`Delete this draft? This cannot be undone.`)) return;
     const { error } = await supabase.from("invoices").delete().eq("workspace_id", workspace.id).eq("id", invoiceId);
     if (error) return setError(error.message);
     onChanged();
@@ -888,7 +839,7 @@ export function InvoiceView({
   }
 
   return (
-    <Modal wide title={`Invoice ${invoice.invoice_number}`} onClose={onClose}>
+    <Modal wide title={`Invoice ${invNo(invoice)}`} onClose={onClose}>
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -974,7 +925,7 @@ export function InvoiceView({
           {editable && <Button variant="secondary" onClick={() => setMode("edit")}>Edit</Button>}
           {canEdit && invoice.status === "draft" && <Button variant="secondary" onClick={() => setStatus("pending")}>Mark as sent</Button>}
           {canEdit && invoice.status === "draft" && !payments.length && <Button variant="danger" onClick={deleteDraft}>Delete draft</Button>}
-          {editable && <Button variant="danger" onClick={() => setStatus("cancelled")}>Cancel invoice</Button>}
+          {canEdit && invoice.status === "pending" && <Button variant="danger" onClick={() => setStatus("cancelled")}>Cancel invoice</Button>}
           {canEdit && invoice.status !== "cancelled" && Number(invoice.balance_due) > 0 && (
             <Button onClick={() => setMode("pay")}>Record payment</Button>
           )}

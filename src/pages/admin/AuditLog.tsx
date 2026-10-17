@@ -10,6 +10,7 @@ const PAGE = 100;
 
 const ACTION_LABEL: Record<string, string> = {
   workspace_created: "Created company",
+  demo_workspace_created: "Created demo company",
   subscription_updated: "Changed subscription",
   payment_recorded: "Recorded payment",
   renewal_approved: "Approved renewal",

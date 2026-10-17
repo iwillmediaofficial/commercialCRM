@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { useMembers } from "../../../lib/members";
 import { date } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
@@ -68,17 +69,22 @@ export default function Work() {
     return () => window.removeEventListener(TIMER_EVENT, load);
   }, [load]);
 
-  // Opening a work item from a notification link (?open=<work item id>).
+  useLiveTable("work_items", `workspace_id=eq.${workspace.id}`, load);
+
+  // Opening a work item from a notification or search (?open=<work item id>), or a new one (?new=1).
   const openId = params.get("open");
+  const wantsNew = params.get("new") === "1";
   useEffect(() => {
-    if (!openId || !items) return;
-    const it = items.find((x) => x.id === openId);
+    if ((!openId && !wantsNew) || !items) return;
+    const it = openId ? items.find((x) => x.id === openId) : null;
     if (it) setOpen(it);
+    else if (wantsNew && isAdmin && canWrite) setOpen("new");
     setParams((p) => {
       p.delete("open");
+      p.delete("new");
       return p;
     }, { replace: true });
-  }, [openId, items, setParams]);
+  }, [openId, wantsNew, items, isAdmin, canWrite, setParams]);
 
   function changeView(v: View) {
     setView(v);

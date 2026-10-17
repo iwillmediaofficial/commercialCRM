@@ -9,6 +9,8 @@
 // POST { action: "delete", file_id }    -> { ok }    (signed in)
 // POST { action: "public_form", slug }  -> { logo, banner }   branding for a public lead form (no sign-in)
 // POST { action: "health" }             -> { ok, bucket }  checks the R2 keys can reach the bucket (no data returned)
+// POST multipart/form-data { entity_type: "upi_qr", file } -> { key }  Super Admin's UPI QR code
+// POST { action: "upi_qr" }             -> { url }   link to the UPI QR code (signed in)
 //
 // Secrets (Supabase > Edge Functions > Secrets): R2_ACCOUNT_ID, R2_ACCESS_KEY_ID,
 // R2_SECRET_ACCESS_KEY, R2_BUCKET.
@@ -26,6 +28,8 @@ const R2_BUCKET = Deno.env.get("R2_BUCKET");
 const MAX_BYTES = 20 * 1024 * 1024;
 const LINK_SECONDS = 600;
 const ENTITY_TYPES = ["work_item", "client", "lead", "invoice", "workspace", "profile", "renewal", "lead_form"];
+// Attachments the Super Admin switches on per company (workspaces.attachments_enabled).
+const ATTACHMENT_TYPES = ["work_item", "client", "lead", "invoice"];
 // No HTML, SVG or scripts: they could run code when opened.
 const ALLOWED = /^(image\/(png|jpe?g|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(zip|x-zip-compressed|msword|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.[a-z.]+)|video\/(mp4|quicktime|webm)|audio\/(mpeg|mp4|ogg|wav))$/;
 
@@ -82,11 +86,41 @@ async function asCaller(req: Request): Promise<{ db: SupabaseClient; userId: str
   return data.user ? { db, userId: data.user.id } : null;
 }
 
+// The Super Admin's UPI QR code lives outside every company, under "_platform/".
+async function uploadUpiQr(caller: { db: SupabaseClient }, file: unknown) {
+  const { data: isAdmin } = await caller.db.rpc("is_platform_admin");
+  if (!isAdmin) return fail(403, "Only the Super Admin can change the UPI QR code.");
+  if (!(file instanceof File) || file.size === 0) return fail(400, "Choose an image.");
+  if (!/^image\/(png|jpe?g|webp)$/.test(file.type)) return fail(400, "The QR code should be a PNG, JPG or WebP image.");
+  if (file.size > 5 * 1024 * 1024) return fail(400, "Images can be up to 5 MB.");
+  const key = `_platform/upi_qr/${crypto.randomUUID()}/${safeName(file.name)}`;
+  const put = await r2!.fetch(objectUrl(key), { method: "PUT", body: await file.arrayBuffer(), headers: { "Content-Type": file.type } });
+  if (!put.ok) return fail(502, "The upload didn't go through. Try again.");
+  const { data: old } = await caller.db.from("platform_settings").select("upi_qr_path").maybeSingle();
+  const { error } = await caller.db.from("platform_settings").update({ upi_qr_path: key }).eq("id", true);
+  if (error) {
+    await r2!.fetch(objectUrl(key), { method: "DELETE" });
+    return fail(403, error.message);
+  }
+  if (old?.upi_qr_path?.startsWith("_platform/")) await r2!.fetch(objectUrl(old.upi_qr_path), { method: "DELETE" });
+  return reply(200, { ok: true, key });
+}
+
+async function upiQrLink(req: Request) {
+  const caller = await asCaller(req);
+  if (!caller) return fail(401, "Sign in again.");
+  const { data } = await service().from("platform_settings").select("upi_qr_path").maybeSingle();
+  const key = data?.upi_qr_path;
+  if (!key || !key.startsWith("_platform/")) return reply(200, { ok: true, url: null });
+  return reply(200, { ok: true, url: await signedGet(key) });
+}
+
 async function upload(req: Request) {
   const caller = await asCaller(req);
   if (!caller) return fail(401, "Sign in again.");
   const form = await req.formData();
   const file = form.get("file");
+  if (form.get("entity_type") === "upi_qr") return await uploadUpiQr(caller, file);
   const workspaceId = String(form.get("workspace_id") ?? "");
   const entityType = String(form.get("entity_type") ?? "");
   const entityId = form.get("entity_id") ? String(form.get("entity_id")) : null;
@@ -102,6 +136,10 @@ async function upload(req: Request) {
     ? await caller.db.rpc("is_workspace_admin", { ws: workspaceId })
     : await caller.db.rpc("can_write", { ws: workspaceId });
   if (!allowed) return fail(403, "You can't upload files to this company right now.");
+  if (ATTACHMENT_TYPES.includes(entityType)) {
+    const { data: ws } = await caller.db.from("workspaces").select("attachments_enabled").eq("id", workspaceId).maybeSingle();
+    if (!ws?.attachments_enabled) return fail(403, "File uploads are turned off for this company.");
+  }
 
   const key = `${workspaceId}/${entityType}/${crypto.randomUUID()}/${safeName(file.name)}`;
   const put = await r2!.fetch(objectUrl(key), {
@@ -161,7 +199,7 @@ async function publicForm(body: { slug?: string }) {
   const { data: f } = await db
     .from("lead_forms")
     .select("workspace_id, logo_path, banner_path, is_active")
-    .eq("slug", body.slug ?? "")
+    .eq("slug", String(body.slug ?? "").trim().toLowerCase())
     .maybeSingle();
   if (!f?.is_active) return reply(200, { ok: true, logo: null, banner: null });
   const { data: s } = await db.from("workspace_settings").select("logo_path").eq("workspace_id", f.workspace_id).maybeSingle();
@@ -189,6 +227,8 @@ Deno.serve(async (req) => {
         return await remove(req, body);
       case "public_form":
         return await publicForm(body);
+      case "upi_qr":
+        return await upiQrLink(req);
       case "health": {
         const r = await r2.fetch(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}?list-type=2&max-keys=1`);
         await r.body?.cancel();

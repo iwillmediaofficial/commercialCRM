@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase, type Tables } from "../../lib/supabase";
 import { fileUrl } from "../../lib/files";
+import { useLiveTable } from "../../lib/realtime";
 import { MODE_LABEL, PERIOD_LABEL, inr } from "../../lib/format";
 import { Alert, Button, Card, Select } from "../../components/ui";
 
@@ -39,6 +40,7 @@ export default function Renewals() {
   useEffect(() => {
     load();
   }, [load]);
+  useLiveTable("renewal_requests", undefined, load);
 
   async function approve(r: Row) {
     const note = window.prompt(`Approve ${inr(r.amount)} from ${r.workspace?.name}? Add a note if you like (optional):`, "");

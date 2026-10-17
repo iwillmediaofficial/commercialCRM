@@ -19,13 +19,13 @@ type NumberField = (typeof NUMBER_FIELDS)[number];
 
 const RULES: [string, string, string][] = [
   ["task_assigned", "Task assigned", "Tell people when a work item is assigned to them."],
-  ["due_date_reminders", "Due date reminders", "Remind assignees about work items due soon."],
+  ["due_date_reminders", "Due date reminders", "Remind assignees the day before and on the day a work item is due."],
   ["lead_assigned", "Lead assigned", "Tell people when a lead is assigned to them."],
   ["billing_alerts", "Billing alerts", "Tell admins about overdue invoices and new recurring invoices."],
   ["renewal_reminders", "Subscription renewal reminders", "Remind admins before the CRM subscription ends."],
 ];
 
-type Form = Record<TextField, string> & Record<NumberField, string> & { rules: Record<string, boolean> };
+type Form = Record<TextField, string> & Record<NumberField, string> & { rules: Record<string, boolean>; staff_manual_time: boolean };
 
 function toForm(s: Settings): Form {
   const f = {} as Form;
@@ -36,6 +36,7 @@ function toForm(s: Settings): Form {
     : {}) as Record<string, unknown>;
   // Rules are on unless switched off.
   f.rules = Object.fromEntries(RULES.map(([k]) => [k, stored[k] !== false]));
+  f.staff_manual_time = !!s.staff_manual_time;
   return f;
 }
 
@@ -143,6 +144,7 @@ export default function WorkspaceSettings() {
         bank_details: blank(form.bank_details),
         recurring_lead_days: Number(form.recurring_lead_days),
         notification_rules: { ...existing, ...form.rules } as Json,
+        staff_manual_time: form.staff_manual_time,
       })
       .eq("workspace_id", workspace.id)
       .select()
@@ -204,7 +206,7 @@ export default function WorkspaceSettings() {
         {text("invoice_prefix", "Invoice number prefix", { placeholder: "INV-" })}
         {num("next_invoice_number", "Next invoice number", {
           min: 1,
-          hint: `Next invoice: ${form.invoice_prefix}${form.next_invoice_number || 1}`,
+          hint: `Next invoice: ${form.invoice_prefix}${String(form.next_invoice_number || 1).padStart(4, "0")}. Drafts get their number when they are sent.`,
         })}
         {num("default_payment_terms_days", "Payment due in (days)", { min: 0, hint: "Default due date for new invoices." })}
         {num("recurring_lead_days", "Create recurring invoices (days before)", {
@@ -223,6 +225,25 @@ export default function WorkspaceSettings() {
           </Field>
         </div>
       </Section>
+
+      <Card title="Time tracking">
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            disabled={readOnly}
+            checked={form.staff_manual_time}
+            onChange={(e) => {
+              setSaved(false);
+              setForm({ ...form, staff_manual_time: e.target.checked });
+            }}
+          />
+          <span>
+            <span className="font-medium text-slate-700">Staff can add and edit time by hand</span>
+            <span className="block text-xs text-slate-500">When off, staff log time only with the timer, and only owners and admins can add or change entries.</span>
+          </span>
+        </label>
+      </Card>
 
       <Card title="In-app notifications">
         <p className="mb-3 text-sm text-slate-500">Choose which alerts appear in the bell for your team. Nothing is sent by email.</p>

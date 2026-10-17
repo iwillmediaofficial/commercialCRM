@@ -32,12 +32,15 @@ export default function Timesheets() {
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<Entry | "new" | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [staffManual, setStaffManual] = useState(false);
 
   useEffect(() => {
     Promise.all([
       supabase.from("clients").select("id, company_name").eq("workspace_id", workspace.id).order("company_name"),
       supabase.from("work_items").select("id, title, client_id").eq("workspace_id", workspace.id).order("title"),
-    ]).then(([c, w]) => {
+      supabase.from("workspace_settings").select("staff_manual_time").eq("workspace_id", workspace.id).maybeSingle(),
+    ]).then(([c, w, s]) => {
+      setStaffManual(!!s.data?.staff_manual_time);
       setClients((c.data ?? []).map((x) => ({ id: x.id, label: x.company_name })));
       setItems((w.data ?? []).map((x) => ({ id: x.id, label: x.title, client_id: x.client_id })));
     });
@@ -114,6 +117,8 @@ export default function Timesheets() {
 
   const setFilter = (k: keyof typeof filters, v: string) => setFilters((f) => ({ ...f, [k]: v }));
   const adminWrite = isAdmin && canWrite;
+  // Staff add or fix their own time by hand only when the company allows it.
+  const ownWrite = adminWrite || (canWrite && staffManual);
 
   return (
     <>
@@ -121,7 +126,7 @@ export default function Timesheets() {
         <h1 className="text-xl font-semibold">Time</h1>
         <div className="flex gap-2">
           <Button variant="secondary" disabled={!entries?.length} onClick={exportCsv}>Export CSV</Button>
-          {adminWrite && <Button onClick={() => setEditing("new")}>+ Add entry</Button>}
+          {ownWrite && <Button onClick={() => setEditing("new")}>+ Add entry</Button>}
         </div>
       </div>
 
@@ -193,7 +198,7 @@ export default function Timesheets() {
                   <th className="pr-3">Work</th>
                   <th className="pr-3 text-right">Hours</th>
                   <th className="pr-3">Notes</th>
-                  {adminWrite && <th></th>}
+                  {ownWrite && <th></th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -215,10 +220,12 @@ export default function Timesheets() {
                       {!e.is_billable && <div className="text-xs text-slate-400">Not billable</div>}
                     </td>
                     <td className="max-w-xs py-2 pr-3 text-slate-600">{e.notes}</td>
-                    {adminWrite && (
+                    {ownWrite && (
                       <td className="whitespace-nowrap py-2 text-right">
-                        <button className="text-xs text-indigo-600 hover:underline" onClick={() => setEditing(e)}>Edit</button>
-                        <button className="ml-3 text-xs text-red-600 hover:underline" onClick={() => remove(e)}>Delete</button>
+                        {(adminWrite || e.user_id === me) && (
+                          <button className="text-xs text-indigo-600 hover:underline" onClick={() => setEditing(e)}>Edit</button>
+                        )}
+                        {adminWrite && <button className="ml-3 text-xs text-red-600 hover:underline" onClick={() => remove(e)}>Delete</button>}
                       </td>
                     )}
                   </tr>
@@ -235,7 +242,7 @@ export default function Timesheets() {
       {editing && (
         <EntryModal
           entry={editing === "new" ? null : editing}
-          people={people}
+          people={adminWrite ? people : people.filter((p) => p.user_id === me)}
           items={items}
           clients={clients}
           me={me}

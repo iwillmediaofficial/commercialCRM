@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { inr } from "../../../lib/format";
 import { Alert, Button, Card, Empty, Spinner } from "../../../components/ui";
-import { addDays, clientName, InvoiceView, InvoicingGate, monthStart, nextMonthStart, todayIso, useBillingBasics, type InvoiceRow } from "./shared";
+import { addDays, clientName, invNo, InvoiceView, InvoicingGate, monthStart, nextMonthStart, todayIso, useBillingBasics, type InvoiceRow } from "./shared";
 
 type Pay = { id: string; amount: number; paid_on: string; invoice_id: string; invoices: { invoice_number: string | null; client_id: string } | null };
 
@@ -103,9 +103,9 @@ function CalendarPage() {
         type="button"
         onClick={() => setOpen({ id: i.id!, pay: false })}
         className={`block w-full truncate rounded px-1.5 py-0.5 text-left text-xs ring-1 hover:brightness-95 ${TILE[st] ?? TILE.pending}`}
-        title={`${i.invoice_number} · ${clientName(clients, i.client_id)} · ${inr(i.total)} (${st})`}
+        title={`${invNo(i)} · ${clientName(clients, i.client_id)} · ${inr(i.total)} (${st})`}
       >
-        {clientName(clients, i.client_id) || i.invoice_number} · {inr(st === "paid" ? i.total : i.balance_due)}
+        {clientName(clients, i.client_id) || invNo(i)} · {inr(st === "paid" ? i.total : i.balance_due)}
       </button>
     );
   }
@@ -116,7 +116,7 @@ function CalendarPage() {
         type="button"
         onClick={() => setOpen({ id: p.invoice_id, pay: false })}
         className="block w-full truncate rounded px-1.5 py-0.5 text-left text-xs text-green-800 ring-1 ring-green-300 hover:bg-green-50"
-        title={`Payment received for ${p.invoices?.invoice_number ?? "invoice"}`}
+        title={`Payment received for ${p.invoices?.invoice_number ?? "a draft invoice"}`}
       >
         ✓ {inr(p.amount)} received
       </button>

@@ -15,6 +15,7 @@ import {
   type Client,
   type InvoiceRow,
   type Settings,
+  invNo,
 } from "./shared";
 
 type Bill = Tables<"recurring_bills">;
@@ -176,7 +177,7 @@ function RecurringPage() {
               {unpaid.map((r) => (
                 <li key={r.id} className="flex cursor-pointer items-center justify-between gap-2 py-2 hover:bg-slate-50" onClick={() => setViewing(r.id!)}>
                   <span>
-                    <span className="font-medium text-indigo-700">{r.invoice_number}</span>{" "}
+                    <span className="font-medium text-indigo-700">{invNo(r)}</span>{" "}
                     <span className="text-slate-500">· {clientName(clients, r.client_id)} · due {date(r.due_date)}</span>
                   </span>
                   <span className="flex items-center gap-2">
@@ -247,6 +248,8 @@ function BillForm({ bill, clients, settings, onClose, onSaved }: { bill: Bill | 
     setError("");
     const day = Number(form.billing_day);
     if (!form.client_id) return setError("Choose a client.");
+    if (!form.title.trim()) return setError("Give the retainer a title.");
+    if (!(Number(form.amount) > 0)) return setError("Enter an amount above ₹0.");
     if (!(day >= 1 && day <= 28)) return setError("Billing day must be between 1 and 28.");
     if (form.end_date && form.end_date < form.start_date) return setError("End date cannot be before the start date.");
     if (form.next_run_date < form.start_date) return setError("Next bill date cannot be before the start date.");

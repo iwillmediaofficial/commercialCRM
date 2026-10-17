@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase, type Tables } from "../../lib/supabase";
 import { INDIAN_STATES } from "../../lib/format";
+import { uploadUpiQr, useUpiQr } from "../../lib/files";
 import { Alert, Button, Card, Field, Input, Select, Spinner, Textarea } from "../../components/ui";
 
 type S = Tables<"platform_settings">;
@@ -95,6 +96,9 @@ export default function Settings() {
           <Field label="Note for customers" hint="e.g. Send the UTR number after paying.">
             <Input {...text("payment_note")} />
           </Field>
+          <div className="sm:col-span-2">
+            <UpiQr path={s.upi_qr_path} onChange={(key) => setS({ ...s, upi_qr_path: key })} />
+          </div>
         </div>
       </Card>
       <Card title="Product and support">
@@ -153,5 +157,47 @@ export default function Settings() {
         {msg && <Alert tone={msg.tone}>{msg.text}</Alert>}
       </div>
     </form>
+  );
+}
+
+// Saved right away, like logos elsewhere.
+function UpiQr({ path, onChange }: { path: string | null; onChange: (key: string | null) => void }) {
+  const url = useUpiQr(path);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    setError("");
+    setBusy(true);
+    const res = await uploadUpiQr(file);
+    setBusy(false);
+    if (!res.ok) return setError(res.message);
+    onChange(res.key);
+  }
+
+  async function remove() {
+    setError("");
+    const { error } = await supabase.from("platform_settings").update({ upi_qr_path: null }).eq("id", true);
+    if (error) return setError(error.message);
+    onChange(null);
+  }
+
+  return (
+    <div>
+      <span className="mb-1 block text-sm font-medium text-slate-700">UPI QR code</span>
+      <div className="flex items-center gap-3">
+        <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-lg bg-slate-50 text-xs text-slate-400 ring-1 ring-slate-200">
+          {path ? (url ? <img src={url} alt="UPI QR code" className="h-full w-full object-contain" /> : "Loading…") : "None"}
+        </div>
+        <label className="cursor-pointer rounded-lg bg-white px-3 py-2 text-sm font-medium shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+          {busy ? "Uploading…" : path ? "Replace" : "Upload"}
+          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={busy} onChange={(e) => pick(e.target.files?.[0])} />
+        </label>
+        {path && <Button type="button" variant="secondary" onClick={remove}>Remove</Button>}
+      </div>
+      <span className="mt-1 block text-xs text-slate-500">Companies can scan it on their Subscription page. Saved right away.</span>
+      {error && <div className="mt-2"><Alert>{error}</Alert></div>}
+    </div>
   );
 }

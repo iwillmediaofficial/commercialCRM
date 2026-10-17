@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { date, downloadCsv, inr } from "../../../lib/format";
 import { Alert, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
 import {
@@ -17,6 +19,7 @@ import {
   useBillingBasics,
   type DisplayStatus,
   type InvoiceRow,
+  invNo,
 } from "./shared";
 
 export default function Invoices() {
@@ -37,6 +40,22 @@ function InvoiceList() {
   const [filters, setFilters] = useState({ status: "", client: "", month: "" });
   const [viewing, setViewing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [params, setParams] = useSearchParams();
+
+  // Opening an invoice from search (?open=<invoice id>), or a new one (?new=1).
+  const openId = params.get("open");
+  const wantsNew = params.get("new") === "1";
+  useEffect(() => {
+    if (!openId && !wantsNew) return;
+    if (wantsNew && !loaded) return;
+    if (openId) setViewing(openId);
+    if (wantsNew && canEdit) setCreating(true);
+    setParams((p) => {
+      p.delete("open");
+      p.delete("new");
+      return p;
+    }, { replace: true });
+  }, [openId, wantsNew, canEdit, loaded, setParams]);
 
   const load = useCallback(async () => {
     const today = todayIso();
@@ -63,6 +82,8 @@ function InvoiceList() {
     load();
   }, [load]);
 
+  useLiveTable("invoices", `workspace_id=eq.${workspace.id}`, load);
+
   const totals = useMemo(() => {
     let outstanding = 0;
     let overdue = 0;
@@ -85,7 +106,7 @@ function InvoiceList() {
       "invoices.csv",
       ["Invoice no", "Client", "Issue date", "Due date", "Status", "Subtotal", "GST", "Discount", "Total", "Paid", "Balance due"],
       shown.map((r) => [
-        r.invoice_number,
+        invNo(r),
         clientName(clients, r.client_id),
         r.issue_date,
         r.due_date,
@@ -147,7 +168,7 @@ function InvoiceList() {
               {shown.map((r) => (
                 <li key={r.id} className="cursor-pointer py-3" onClick={() => setViewing(r.id!)}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{r.invoice_number}</span>
+                    <span className="font-medium">{invNo(r)}</span>
                     <StatusBadge status={r.display_status} />
                   </div>
                   <div className="text-sm">{clientName(clients, r.client_id)}</div>
@@ -175,7 +196,7 @@ function InvoiceList() {
                 <tbody className="divide-y divide-slate-100">
                   {shown.map((r) => (
                     <tr key={r.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setViewing(r.id!)}>
-                      <td className="py-2 pr-2 font-medium text-indigo-700">{r.invoice_number}</td>
+                      <td className="py-2 pr-2 font-medium text-indigo-700">{invNo(r)}</td>
                       <td className="py-2 pr-2">{clientName(clients, r.client_id)}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(r.issue_date)}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(r.due_date)}</td>

@@ -57,10 +57,9 @@ Deno.serve(async (req) => {
   const email = String(body.email ?? "").trim().toLowerCase();
   const password = String(body.password ?? "");
   const pin = String(body.pin ?? "").trim().toUpperCase().replace(/[\s-]/g, "");
-  const clientKey =
-    req.headers.get("cf-connecting-ip") ??
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ??
-    "unknown";
+  // Set by Cloudflare in front of Supabase; a browser can't fake it. X-Forwarded-For
+  // can be faked, so it is not used.
+  const clientKey = req.headers.get("cf-connecting-ip") ?? req.headers.get("x-real-ip") ?? "unknown";
 
   if (!email.includes("@") || !pin || !password) return fail("bad_request");
   if (password.length < 8) return fail("weak_password");
@@ -95,7 +94,11 @@ Deno.serve(async (req) => {
       // Existing account: prove it is theirs before adding the company to it.
       const anon = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
       const { data: signIn } = await anon.auth.signInWithPassword({ email, password });
-      if (!signIn?.user) return fail("account_exists");
+      if (!signIn?.user) {
+        // A wrong password here counts towards the lockout, so this path can't be used to guess passwords.
+        await admin.rpc("pin_record_failure", { p_email: email, p_client_key: clientKey });
+        return fail("account_exists");
+      }
       userId = signIn.user.id;
     } else {
       return fail("failed", 500);

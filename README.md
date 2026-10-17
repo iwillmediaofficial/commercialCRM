@@ -42,10 +42,24 @@ npm run dev
 `public/_headers` sets security headers (CSP allows only Supabase and R2) and long
 caching for hashed build files.
 
+## Running on the free plans
+
+- `.github/workflows/keep-awake.yml` calls Supabase once a day so the free project never pauses.
+- `.github/workflows/backup.yml` backs up the database every Sunday, encrypted, to
+  `_backups/` in the R2 bucket and keeps the last 8. It needs the repository secrets
+  listed at the top of that file. Run it once by hand from the Actions tab to check it.
+- `supabase/migrations/20261017100100_cleanup.sql` (run once in the SQL Editor) clears
+  activity older than 6 months, read notifications older than 3 months and error
+  reports older than 1 month, on the 1st of every month.
+- File attachments on tasks, clients, leads and invoices are off until the Super Admin
+  turns them on for a company in /admin. Images are shrunk in the browser before upload.
+
+To restore a backup: download it from R2, then
+`gpg -d db-YYYY-MM-DD.dump.gpg > db.dump` and
+`pg_restore --no-owner --no-privileges -d "<connection string>" db.dump` into a fresh project.
+
 ## Launch checklist
 
-- Supabase Pro plan: daily backups (7 days kept) and no pausing. Point-in-time
-  recovery is an optional add-on.
 - Supabase > Authentication > Leaked password protection: turn on.
 - /admin/settings: product name, support contact, and your business and GST details
   for subscription invoices.
