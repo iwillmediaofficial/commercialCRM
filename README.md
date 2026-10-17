@@ -38,6 +38,8 @@ npm run dev
 5. Supabase > Authentication > URL Configuration: set Site URL to the pages.dev address
    (no emails are sent, but it keeps auth redirects correct).
 
+If Cloudflare shows "disconnected from your Git account", reconnect it, then push or merge any change to `main` to start a new build.
+
 `public/_redirects` sends every path to the app so links like `/w/acme/team` work.
 `public/_headers` sets security headers (CSP allows only Supabase and R2) and long
 caching for hashed build files.
