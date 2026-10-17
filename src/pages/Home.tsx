@@ -2,11 +2,13 @@ import { Link, Navigate } from "react-router";
 import { useAuth } from "../lib/auth";
 import { Card } from "../components/ui";
 import { TopBar } from "../components/TopBar";
+import { productName, useSiteInfo } from "../lib/site";
 
 // Sends people where they belong: one company goes straight in, several get a
 // picker, and a Super Admin with no company lands on /admin.
 export default function Home() {
   const { memberships, isPlatformAdmin } = useAuth();
+  const info = useSiteInfo();
 
   if (memberships.length === 1 && !isPlatformAdmin) {
     return <Navigate to={`/w/${memberships[0].workspace.slug}`} replace />;
@@ -15,8 +17,8 @@ export default function Home() {
 
   return (
     <>
-      <TopBar title="CRM" />
-      <main className="mx-auto max-w-xl space-y-4 p-4">
+      <TopBar title={productName(info)} />
+      <main className="mx-auto max-w-xl space-y-4 px-4 py-10">
         {memberships.length === 0 ? (
           <Card title="No company yet">
             <p className="text-sm text-slate-600">
@@ -29,7 +31,7 @@ export default function Home() {
             <ul className="divide-y divide-slate-100">
               {memberships.map((m) => (
                 <li key={m.workspace_id}>
-                  <Link className="flex justify-between py-3 hover:text-indigo-600" to={`/w/${m.workspace.slug}`}>
+                  <Link className="flex items-center justify-between rounded-lg px-2 py-3 font-medium hover:bg-slate-50 hover:text-brand-600" to={`/w/${m.workspace.slug}`}>
                     <span>{m.workspace.name}</span>
                     <span className="text-sm capitalize text-slate-500">{m.role}</span>
                   </Link>

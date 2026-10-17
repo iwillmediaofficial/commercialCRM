@@ -70,17 +70,20 @@ export default function Leads() {
 
   useLiveTable("leads", `workspace_id=eq.${workspace.id}`, load);
 
-  // Opening a lead from a notification link (?open=<lead id>).
+  // Opening a lead from a notification or search (?open=<lead id>), or a new one (?new=1).
   const openId = params.get("open");
+  const wantsNew = params.get("new") === "1";
   useEffect(() => {
-    if (!openId || !leads) return;
-    const l = leads.find((x) => x.id === openId);
+    if ((!openId && !wantsNew) || !leads) return;
+    const l = openId ? leads.find((x) => x.id === openId) : null;
     if (l) setEditing(l);
+    else if (wantsNew && canWrite) setEditing("new");
     setParams((p) => {
       p.delete("open");
+      p.delete("new");
       return p;
     }, { replace: true });
-  }, [openId, leads, setParams]);
+  }, [openId, wantsNew, leads, canWrite, setParams]);
 
   function switchView(v: View) {
     setView(v);

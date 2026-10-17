@@ -3,13 +3,13 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLA
 export function Button({ className = "", variant = "primary", ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" }) {
   const styles = {
-    primary: "bg-indigo-600 text-white hover:bg-indigo-700",
-    secondary: "bg-white text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50",
-    danger: "bg-white text-red-600 ring-1 ring-red-200 hover:bg-red-50",
+    primary: "bg-brand-gradient text-white shadow-brand hover:brightness-110",
+    secondary: "bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:ring-slate-300",
+    danger: "bg-white text-red-600 shadow-sm ring-1 ring-red-200 hover:bg-red-50",
   }[variant];
   return (
     <button
-      className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50 ${styles} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-50 ${styles} ${className}`}
       {...props}
     />
   );
@@ -26,7 +26,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 }
 
 const inputClass =
-  "block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  "block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/15";
 
 export function Input({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={`${inputClass} ${className}`} {...props} />;
@@ -61,10 +61,10 @@ export function Select({ className = "", ...props }: SelectHTMLAttributes<HTMLSe
 
 export function Card({ title, children, actions }: { title?: string; children: ReactNode; actions?: ReactNode }) {
   return (
-    <section className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <section className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70">
       {(title || actions) && (
         <div className="mb-4 flex items-center justify-between gap-2">
-          {title && <h2 className="text-base font-semibold">{title}</h2>}
+          {title && <h2 className="text-[15px] font-semibold tracking-tight text-slate-900">{title}</h2>}
           {actions}
         </div>
       )}
@@ -80,16 +80,19 @@ export function Alert({ tone = "error", children }: { tone?: "error" | "success"
     warning: "bg-amber-50 text-amber-800 ring-amber-200",
     info: "bg-sky-50 text-sky-800 ring-sky-200",
   }[tone];
-  return <div className={`rounded-md px-3 py-2 text-sm ring-1 ${styles}`}>{children}</div>;
+  return <div className={`rounded-lg px-3.5 py-2.5 text-sm ring-1 ${styles}`}>{children}</div>;
 }
 
 export function Spinner() {
-  return <div className="p-8 text-center text-sm text-slate-500">Loading…</div>;
+  return <div className="flex items-center justify-center gap-2 p-10 text-sm text-slate-500">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" aria-hidden />
+      Loading…
+    </div>;
 }
 
 export function PinBox({ pin, expires }: { pin: string; expires?: string }) {
   return (
-    <div className="rounded-md bg-slate-900 p-4 text-center text-white">
+    <div className="rounded-lg bg-sidebar p-4 text-center text-white">
       <div className="font-mono text-2xl tracking-[0.3em]">{pin}</div>
       <div className="mt-1 text-xs text-slate-300">
         Shown once. Works one time{expires ? `, until ${new Date(expires).toLocaleDateString()}` : ""}.
@@ -104,7 +107,7 @@ export function Textarea({ className = "", ...props }: TextareaHTMLAttributes<HT
 
 // Small coloured pill. Pass any Tailwind colour classes in `tone`.
 export function Badge({ tone = "bg-slate-100 text-slate-700", children }: { tone?: string; children: ReactNode }) {
-  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{children}</span>;
+  return <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{children}</span>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
@@ -139,7 +142,7 @@ function useEscape(onClose: () => void) {
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
   useEscape(onClose);
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-label={title}
@@ -147,8 +150,8 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-base font-semibold">{title}</h2>
-          <button className="text-slate-400 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
+          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          <button className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
         </div>
         {children}
       </div>
@@ -160,7 +163,7 @@ export function Modal({ title, onClose, children, wide }: { title: string; onClo
 export function Drawer({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEscape(onClose);
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/40" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-slate-900/50 backdrop-blur-[2px]" onMouseDown={onClose}>
       <aside
         role="dialog"
         aria-label={title}
@@ -168,8 +171,8 @@ export function Drawer({ title, onClose, children }: { title: string; onClose: (
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <button className="text-slate-400 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
+          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <button className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close" onClick={onClose}>✕</button>
         </div>
         {children}
       </aside>

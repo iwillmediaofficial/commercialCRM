@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { useLiveTable } from "../../../lib/realtime";
@@ -38,6 +39,22 @@ function InvoiceList() {
   const [filters, setFilters] = useState({ status: "", client: "", month: "" });
   const [viewing, setViewing] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [params, setParams] = useSearchParams();
+
+  // Opening an invoice from search (?open=<invoice id>), or a new one (?new=1).
+  const openId = params.get("open");
+  const wantsNew = params.get("new") === "1";
+  useEffect(() => {
+    if (!openId && !wantsNew) return;
+    if (wantsNew && !loaded) return;
+    if (openId) setViewing(openId);
+    if (wantsNew && canEdit) setCreating(true);
+    setParams((p) => {
+      p.delete("open");
+      p.delete("new");
+      return p;
+    }, { replace: true });
+  }, [openId, wantsNew, canEdit, loaded, setParams]);
 
   const load = useCallback(async () => {
     const today = todayIso();

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router";
 import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { useLiveTable } from "../../../lib/realtime";
@@ -70,6 +71,7 @@ export default function Clients() {
   const [dmOnly, setDmOnly] = useState(false);
   const [editing, setEditing] = useState<Client | "new" | null>(null);
   const [viewing, setViewing] = useState<Client | null>(null);
+  const [params, setParams] = useSearchParams();
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -87,6 +89,18 @@ export default function Clients() {
   }, [load]);
 
   useLiveTable("clients", `workspace_id=eq.${workspace.id}`, load);
+
+  // Opening a client from search (?open=<client id>).
+  const openId = params.get("open");
+  useEffect(() => {
+    if (!openId || loading) return;
+    const c = clients.find((x) => x.id === openId);
+    if (c) setViewing(c);
+    setParams((p) => {
+      p.delete("open");
+      return p;
+    }, { replace: true });
+  }, [openId, loading, clients, setParams]);
 
   const canEdit = isAdmin && canWrite;
   const activeCount = clients.filter((c) => c.status === "active").length;

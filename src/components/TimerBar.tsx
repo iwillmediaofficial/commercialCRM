@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useWorkspace } from "../lib/workspace";
 import { useLiveTable, usePageVisible } from "../lib/realtime";
+import { Icon } from "./icons";
 import { announceTimerChange, hms, secondsOf, TIMER_EVENT } from "../pages/workspace/time/timeUtil";
 
 type Running = {
@@ -48,7 +49,7 @@ function writeSession(key: string, v: PauseState | null) {
   }
 }
 
-// The global running-timer bar shown at the top of every workspace page.
+// The running-timer pill in the top bar of every workspace page.
 export function TimerBar() {
   const { workspace, canWrite } = useWorkspace();
   const { session } = useAuth();
@@ -203,102 +204,107 @@ export function TimerBar() {
   // While a resumed session runs, show the whole session's time next to this entry's.
   const sessionSoFar = running && pauseState && !pauseState.paused && pauseState.entryId === running.id ? pauseState.logged : 0;
 
+  const pill = "flex h-10 items-center gap-2 rounded-xl px-1.5 pl-3 text-sm ring-1";
+  const iconBtn = "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg disabled:opacity-50";
+
   return (
-    <div className={`border-b text-sm ${running ? "border-green-200 bg-green-50" : paused ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-1.5">
-        {running ? (
-          <>
-            <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-green-600" aria-hidden />
-            <span className="font-mono font-semibold tabular-nums text-green-800">{hms(secondsOf(running, now))}</span>
-            <span className="min-w-0 flex-1 truncate text-slate-700" title={label}>
-              {label}
-              {sessionSoFar > 0 && <span className="text-xs text-slate-500"> · {hms(sessionSoFar + secondsOf(running, now))} in total</span>}
-            </span>
-            <button
-              className="shrink-0 rounded-md px-3 py-1 text-xs font-medium text-amber-800 ring-1 ring-amber-300 hover:bg-amber-50 disabled:opacity-50"
-              disabled={busy}
-              onClick={pause}
-            >
-              Pause
-            </button>
-            <button
-              className="shrink-0 rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
-              disabled={busy}
-              onClick={stop}
-            >
-              Stop
-            </button>
-          </>
-        ) : paused ? (
-          <>
-            <span className="shrink-0 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">Paused</span>
-            <span className="font-mono font-semibold tabular-nums text-amber-800">{hms(paused.logged)}</span>
-            <span className="min-w-0 flex-1 truncate text-slate-700" title={paused.label}>{paused.label}</span>
-            <button
-              className="shrink-0 rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-              disabled={busy}
-              onClick={resume}
-            >
-              ▶ Resume
-            </button>
-            <button
-              className="shrink-0 text-xs text-slate-500 hover:text-slate-800"
-              title="Forget this paused timer. Time already logged stays."
-              disabled={busy}
-              onClick={discard}
-            >
-              Discard
-            </button>
-          </>
-        ) : open ? (
-          <form
-            className="flex min-w-0 flex-1 items-center gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              start();
-            }}
+    <div className="relative">
+      {running ? (
+        <div className={`${pill} bg-emerald-50 ring-emerald-200`}>
+          <span className="relative flex h-2 w-2 shrink-0" aria-hidden>
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          <span className="font-mono text-[13px] font-semibold tabular-nums text-emerald-800">{hms(secondsOf(running, now))}</span>
+          <span className="hidden max-w-44 truncate text-slate-600 xl:block" title={label}>
+            {label}
+            {sessionSoFar > 0 && <span className="text-xs text-slate-400"> · {hms(sessionSoFar + secondsOf(running, now))} total</span>}
+          </span>
+          <button className={`${iconBtn} text-amber-700 hover:bg-amber-100`} disabled={busy} onClick={pause} title="Pause" aria-label="Pause timer">
+            <Icon name="pause" className="h-3.5 w-3.5" />
+          </button>
+          <button className={`${iconBtn} bg-red-500 text-white hover:bg-red-600`} disabled={busy} onClick={stop} title="Stop" aria-label="Stop timer">
+            <Icon name="stop" className="h-3 w-3" />
+          </button>
+        </div>
+      ) : paused ? (
+        <div className={`${pill} bg-amber-50 ring-amber-200`}>
+          <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-800">Paused</span>
+          <span className="font-mono text-[13px] font-semibold tabular-nums text-amber-800">{hms(paused.logged)}</span>
+          <span className="hidden max-w-40 truncate text-slate-600 xl:block" title={paused.label}>{paused.label}</span>
+          <button
+            className="flex h-7 shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+            disabled={busy}
+            onClick={resume}
           >
-            <select
-              className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm"
-              value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
-              aria-label="Work item"
-            >
-              <option value="">No work item</option>
-              {items.map((i) => (
-                <option key={i.id} value={i.id}>{i.title}</option>
-              ))}
-            </select>
-            <input
-              className="hidden min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm sm:block"
-              placeholder="Note (optional)"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="shrink-0 rounded-md bg-green-600 px-3 py-1 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
-              disabled={busy}
-            >
-              Start
-            </button>
-            <button type="button" className="shrink-0 text-xs text-slate-500 hover:text-slate-800" onClick={() => setOpen(false)}>
+            <Icon name="play" className="h-3 w-3" /> Resume
+          </button>
+          <button
+            className="hidden shrink-0 px-1 text-xs text-slate-500 hover:text-slate-800 sm:block"
+            title="Forget this paused timer. Time already logged stays."
+            disabled={busy}
+            onClick={discard}
+          >
+            Discard
+          </button>
+        </div>
+      ) : (
+        <div className={`${pill} bg-white ring-slate-200`}>
+          <span className="hidden h-2 w-2 rounded-full bg-slate-300 sm:block" aria-hidden />
+          <span className="hidden text-slate-500 lg:block">No timer running</span>
+          <button
+            className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 text-xs font-semibold text-white hover:bg-slate-800"
+            onClick={() => setOpen(!open)}
+          >
+            <Icon name="play" className="h-3 w-3" /> <span className="hidden sm:inline">Start timer</span>
+          </button>
+        </div>
+      )}
+      {open && !running && !paused && (
+        <form
+          className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] space-y-3 rounded-xl bg-white p-4 shadow-lg ring-1 ring-slate-200"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+        >
+          <div className="text-sm font-semibold">Start a timer</div>
+          <select
+            className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+            value={itemId}
+            onChange={(e) => setItemId(e.target.value)}
+            aria-label="Work item"
+          >
+            <option value="">No work item</option>
+            {items.map((i) => (
+              <option key={i.id} value={i.id}>{i.title}</option>
+            ))}
+          </select>
+          <input
+            className="block w-full rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm"
+            placeholder="Note (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <button type="button" className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100" onClick={() => setOpen(false)}>
               Cancel
             </button>
-          </form>
-        ) : (
-          <>
-            <span className="flex-1 text-slate-500">No timer running</span>
             <button
-              className="shrink-0 rounded-md px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-300 hover:bg-green-50"
-              onClick={() => setOpen(true)}
+              type="submit"
+              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+              disabled={busy}
             >
-              ▶ Start timer
+              <Icon name="play" className="h-3 w-3" /> Start
             </button>
-          </>
-        )}
-        {error && <span className="shrink-0 truncate text-xs text-red-600" title={error}>{error}</span>}
-      </div>
+          </div>
+        </form>
+      )}
+      {error && (
+        <div className="absolute right-0 z-40 mt-2 w-72 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200" role="alert" onClick={() => setError("")}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

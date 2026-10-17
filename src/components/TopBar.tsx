@@ -1,32 +1,16 @@
 import { Link } from "react-router";
-import { useAuth } from "../lib/auth";
-import { NotificationBell } from "./NotificationBell";
-import { StoredImage } from "./Files";
+import { UserMenu } from "./AppShell";
 
-export function TopBar({
-  title,
-  workspace,
-  logoPath,
-}: {
-  title: string;
-  workspace?: { id: string; slug: string };
-  logoPath?: string | null;
-}) {
-  const { session, isPlatformAdmin, memberships, signOut } = useAuth();
+// Slim top bar for pages outside a company (the company picker).
+export function TopBar({ title }: { title: string }) {
   return (
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link to="/" className="flex min-w-0 items-center gap-2 font-semibold">
-          {logoPath && <StoredImage storageKey={logoPath} className="h-7 w-7 shrink-0 rounded object-cover" />}
+    <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/85 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
+        <Link to="/" className="flex min-w-0 items-center gap-2.5 font-semibold tracking-tight">
+          <span className="h-8 w-8 shrink-0 rounded-lg bg-brand-gradient shadow-brand" aria-hidden />
           <span className="truncate">{title}</span>
         </Link>
-        <div className="flex items-center gap-3 text-sm">
-          {workspace && <NotificationBell workspace={workspace} />}
-          {isPlatformAdmin && <Link className="text-slate-600 hover:text-slate-900" to="/admin">Super Admin</Link>}
-          {memberships.length > 1 && <Link className="text-slate-600 hover:text-slate-900" to="/">Switch company</Link>}
-          <span className="hidden text-slate-500 sm:inline">{session?.user.email}</span>
-          <button className="text-slate-600 hover:text-slate-900" onClick={signOut}>Sign out</button>
-        </div>
+        <UserMenu />
       </div>
     </header>
   );
