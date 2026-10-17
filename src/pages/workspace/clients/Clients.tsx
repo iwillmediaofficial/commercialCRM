@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Field, Input, Modal, Select, Spinner, Textarea } from "../../../components/ui";
 import { ImagePicker, StoredImage } from "../../../components/Files";
@@ -84,6 +85,8 @@ export default function Clients() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useLiveTable("clients", `workspace_id=eq.${workspace.id}`, load);
 
   const canEdit = isAdmin && canWrite;
   const activeCount = clients.filter((c) => c.status === "active").length;

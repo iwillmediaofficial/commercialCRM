@@ -1642,6 +1642,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          attachments_enabled: boolean
           created_at: string
           created_by: string | null
           id: string
@@ -1659,6 +1660,7 @@ export type Database = {
           valid_until: string
         }
         Insert: {
+          attachments_enabled?: boolean
           created_at?: string
           created_by?: string | null
           id?: string
@@ -1676,6 +1678,7 @@ export type Database = {
           valid_until: string
         }
         Update: {
+          attachments_enabled?: boolean
           created_at?: string
           created_by?: string | null
           id?: string

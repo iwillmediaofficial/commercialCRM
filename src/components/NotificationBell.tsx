@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { supabase, type Tables } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
+import { useLiveTable, useVisibleInterval } from "../lib/realtime";
 
 type Note = Tables<"notifications">;
 
@@ -36,9 +37,11 @@ export function NotificationBell({ workspace }: { workspace: { id: string; slug:
 
   useEffect(() => {
     load();
-    const t = window.setInterval(load, 60_000);
-    return () => window.clearInterval(t);
   }, [load]);
+
+  useLiveTable("notifications", `user_id=eq.${userId}`, load, { enabled: !!userId });
+  // Slow safety net in case the live connection drops.
+  useVisibleInterval(load, 5 * 60_000);
 
   useEffect(() => {
     if (!open) return;

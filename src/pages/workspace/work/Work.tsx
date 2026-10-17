@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { useMembers } from "../../../lib/members";
 import { date } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
@@ -67,6 +68,8 @@ export default function Work() {
     window.addEventListener(TIMER_EVENT, load);
     return () => window.removeEventListener(TIMER_EVENT, load);
   }, [load]);
+
+  useLiveTable("work_items", `workspace_id=eq.${workspace.id}`, load);
 
   // Opening a work item from a notification link (?open=<work item id>).
   const openId = params.get("open");

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { deleteFile, fileUrl, formatBytes, openFile, uploadFile, useFileUrl, type EntityType, type FileRow } from "../lib/files";
+import { MAX_FILE_MB, deleteFile, fileUrl, formatBytes, openFile, uploadFile, useFileUrl, type EntityType, type FileRow } from "../lib/files";
+import { useWorkspace } from "../lib/workspace";
 import { Alert, Button } from "./ui";
 
 const ACCEPT = "image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,video/*,audio/*";
@@ -22,7 +23,10 @@ export function Attachments({
   canDelete: (f: FileRow) => boolean;
   title?: string;
 }) {
-  const [files, setFiles] = useState<FileRow[]>([]);
+  const { workspace } = useWorkspace();
+  const uploadsOn = !!workspace.attachments_enabled;
+  const showUpload = canUpload && uploadsOn;
+  const [files, setFiles] = useState<FileRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const input = useRef<HTMLInputElement>(null);
@@ -61,11 +65,15 @@ export function Attachments({
     load();
   }
 
+  // With uploads off, the section only appears for files added before.
+  if (!uploadsOn && !files?.length) return null;
+  const list = files ?? [];
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}{files.length > 0 && ` (${files.length})`}</h3>
-        {canUpload && (
+        <h3 className="text-sm font-semibold">{title}{list.length > 0 && ` (${list.length})`}</h3>
+        {showUpload && (
           <>
             <input ref={input} type="file" multiple accept={ACCEPT} className="hidden" onChange={(e) => add(e.target.files)} />
             <Button type="button" variant="secondary" disabled={busy} onClick={() => input.current?.click()}>
@@ -75,11 +83,12 @@ export function Attachments({
         )}
       </div>
       {error && <div className="mb-2"><Alert>{error}</Alert></div>}
-      {files.length === 0 ? (
-        <p className="text-sm text-slate-500">{canUpload ? `No files yet. Up to 20 MB each.` : "No files."}</p>
+      {!uploadsOn && <p className="mb-2 text-xs text-slate-500">Uploads are turned off for this company.</p>}
+      {list.length === 0 ? (
+        <p className="text-sm text-slate-500">{showUpload ? `No files yet. Up to ${MAX_FILE_MB} MB each.` : "No files."}</p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
-          {files.map((f) => (
+          {list.map((f) => (
             <li key={f.id} className="flex items-center gap-3 rounded-md p-2 ring-1 ring-slate-200">
               <Thumb file={f} />
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openFile(f.id)}>
@@ -125,6 +134,7 @@ export function ImagePicker({
   disabled,
   label = "Logo",
   shape = "square",
+  maxSize = shape === "wide" ? 1600 : 512,
 }: {
   workspaceId: string;
   entityType: EntityType;
@@ -134,6 +144,7 @@ export function ImagePicker({
   disabled?: boolean;
   label?: string;
   shape?: "square" | "round" | "wide";
+  maxSize?: number;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -147,7 +158,7 @@ export function ImagePicker({
     if (!file.type.startsWith("image/")) return setError("Choose an image (PNG, JPG or WebP).");
     setBusy(true);
     setError("");
-    const r = await uploadFile({ workspaceId, entityType, entityId, file });
+    const r = await uploadFile({ workspaceId, entityType, entityId, file, maxSize });
     setBusy(false);
     if (input.current) input.current.value = "";
     if (!r.ok) return setError(r.message);

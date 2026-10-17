@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { nameOf, useMembers } from "../../../lib/members";
 import { date, downloadCsv, inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
@@ -66,6 +67,8 @@ export default function Leads() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useLiveTable("leads", `workspace_id=eq.${workspace.id}`, load);
 
   // Opening a lead from a notification link (?open=<lead id>).
   const openId = params.get("open");

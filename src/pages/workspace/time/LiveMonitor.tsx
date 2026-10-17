@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable, usePageVisible, useVisibleInterval } from "../../../lib/realtime";
 import { nameOf, type Person } from "../../../lib/members";
 import { Alert, Button, Card, Empty } from "../../../components/ui";
 import { announceTimerChange, dateTime, hms, secondsOf, TIMER_EVENT } from "./timeUtil";
@@ -8,7 +9,7 @@ import { announceTimerChange, dateTime, hms, secondsOf, TIMER_EVENT } from "./ti
 type Opt = { id: string; label: string };
 type Running = { id: string; user_id: string; started_at: string; stopped_at: string | null; work_item_id: string | null; client_id: string | null; notes: string | null };
 
-// Admins: who is clocked in right now. Refreshes every 30 seconds.
+// Admins: who is clocked in right now. Updates live as timers start and stop.
 export function LiveMonitor({ people, items, clients }: { people: Person[]; items: Opt[]; clients: Opt[] }) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const [rows, setRows] = useState<Running[] | null>(null);
@@ -28,21 +29,23 @@ export function LiveMonitor({ people, items, clients }: { people: Person[]; item
     setChecked(new Date());
   }, [workspace.id]);
 
-  useEffect(() => {
-    load();
-    const poll = setInterval(load, 30_000);
-    window.addEventListener(TIMER_EVENT, load);
-    return () => {
-      clearInterval(poll);
-      window.removeEventListener(TIMER_EVENT, load);
-    };
-  }, [load]);
+  const shown = usePageVisible();
 
   useEffect(() => {
-    if (!rows?.length) return;
+    load();
+    window.addEventListener(TIMER_EVENT, load);
+    return () => window.removeEventListener(TIMER_EVENT, load);
+  }, [load]);
+
+  useLiveTable("time_entries", `workspace_id=eq.${workspace.id}`, load);
+  useVisibleInterval(load, 5 * 60_000);
+
+  useEffect(() => {
+    if (!rows?.length || !shown) return;
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [rows]);
+  }, [rows, shown]);
 
   async function stop(r: Running) {
     if (!confirm(`Stop ${nameOf(people, r.user_id) || "this person"}'s timer now?`)) return;

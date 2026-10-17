@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
+import { useLiveTable } from "../../../lib/realtime";
 import { date, downloadCsv, inr } from "../../../lib/format";
 import { Alert, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
 import {
@@ -62,6 +63,8 @@ function InvoiceList() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useLiveTable("invoices", `workspace_id=eq.${workspace.id}`, load);
 
   const totals = useMemo(() => {
     let outstanding = 0;

@@ -1,0 +1,54 @@
+# Weekly database backup into the private R2 bucket, encrypted, keeping the
+# last 8. The free Supabase plan has no backups of its own.
+#
+# Repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL     Supabase > Connect > Session pooler connection string, with the password filled in
+#   BACKUP_PASSPHRASE   any long passphrase; keep it in your password manager, restores need it
+#   R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET   same values as the Supabase secrets
+name: Weekly database backup
+
+on:
+  schedule:
+    - cron: "30 21 * * 6" # Sundays 03:00 IST
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      BUCKET: ${{ secrets.R2_BUCKET }}
+      KEEP: 8
+    steps:
+      - name: Install pg_dump 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          test -n "$DB_URL" && test -n "$PASSPHRASE" || { echo "Missing SUPABASE_DB_URL or BACKUP_PASSPHRASE secret"; exit 1; }
+          FILE="db-$(date -u +%Y-%m-%d).dump"
+          /usr/lib/postgresql/17/bin/pg_dump "$DB_URL" -Fc --no-owner --no-privileges \
+            --schema=public --schema=private --schema=auth -f "$FILE"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$PASSPHRASE" --symmetric --cipher-algo AES256 -o "$FILE.gpg" "$FILE"
+          rm "$FILE"
+          ls -lh "$FILE.gpg"
+          echo "FILE=$FILE.gpg" >> "$GITHUB_ENV"
+
+      - name: Upload to R2 and keep the last 8
+        run: |
+          aws s3 cp "$FILE" "s3://$BUCKET/_backups/$FILE" --endpoint-url "$ENDPOINT"
+          aws s3 ls "s3://$BUCKET/_backups/" --endpoint-url "$ENDPOINT" | awk '{print $4}' | grep '^db-' | sort | head -n -"$KEEP" | while read -r old; do
+            aws s3 rm "s3://$BUCKET/_backups/$old" --endpoint-url "$ENDPOINT"
+          done
+          aws s3 ls "s3://$BUCKET/_backups/" --endpoint-url "$ENDPOINT"

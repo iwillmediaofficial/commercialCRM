@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useWorkspace } from "../lib/workspace";
+import { useLiveTable, usePageVisible } from "../lib/realtime";
 import { announceTimerChange, hms, secondsOf, TIMER_EVENT } from "../pages/workspace/time/timeUtil";
 
 type Running = {
@@ -88,22 +89,21 @@ export function TimerBar() {
 
   useEffect(() => {
     load();
-    const onFocus = () => load();
     window.addEventListener(TIMER_EVENT, load);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener(TIMER_EVENT, load);
-      window.removeEventListener("focus", onFocus);
-    };
+    return () => window.removeEventListener(TIMER_EVENT, load);
   }, [load]);
 
-  // Tick once a second while a timer runs.
+  // Timers started or stopped in another tab, or by an admin. Also reloads on tab return.
+  useLiveTable("time_entries", `user_id=eq.${me}`, load, { enabled: !!me });
+
+  // Tick once a second while a timer runs and the tab is visible.
+  const shown = usePageVisible();
   useEffect(() => {
-    if (!running) return;
+    if (!running || !shown) return;
     setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [running]);
+  }, [running, shown]);
 
   // Load the work item picker the first time it is opened.
   useEffect(() => {

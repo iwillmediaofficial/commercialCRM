@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { useWorkspace } from "../../lib/workspace";
+import { useLiveTable } from "../../lib/realtime";
 import { useMembers, nameOf } from "../../lib/members";
 import { inr } from "../../lib/format";
 import { Card, Empty } from "../../components/ui";
@@ -30,60 +31,64 @@ export default function Dashboard() {
   const [billing, setBilling] = useState<{ label: string; count: number; amount: number; tone: string }[]>([]);
   const [activity, setActivity] = useState<Tables<"activity_logs">[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     const ws = workspace.id;
     const count = (q: PromiseLike<{ count: number | null }>) => Promise.resolve(q).then((r) => r.count ?? 0);
     const from = `${lastMonths()[0].key}-01`;
-    (async () => {
-      const [clients, work, leads, invoices, payments, logs] = await Promise.all([
-        count(supabase.from("clients").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("status", "active")),
-        hasModule("work")
-          ? count(supabase.from("work_items").select("id", { count: "exact", head: true }).eq("workspace_id", ws).neq("status", "completed"))
-          : Promise.resolve(null),
-        hasModule("leads")
-          ? count(supabase.from("leads").select("id", { count: "exact", head: true }).eq("workspace_id", ws).not("stage", "in", "(won,lost)"))
-          : Promise.resolve(null),
-        showMoney
-          ? supabase.from("invoices_with_status").select("display_status, balance_due, total").eq("workspace_id", ws).neq("status", "cancelled").then((r) => r.data ?? [])
-          : Promise.resolve([]),
-        showMoney
-          ? supabase.from("invoice_payments").select("amount, paid_on").eq("workspace_id", ws).gte("paid_on", from).then((r) => r.data ?? [])
-          : Promise.resolve([]),
-        !admin ? Promise.resolve([]) : supabase.from("activity_logs").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(15).then((r) => r.data ?? []),
-      ]);
+    const [clients, work, leads, invoices, payments, logs] = await Promise.all([
+      count(supabase.from("clients").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("status", "active")),
+      hasModule("work")
+        ? count(supabase.from("work_items").select("id", { count: "exact", head: true }).eq("workspace_id", ws).neq("status", "completed"))
+        : Promise.resolve(null),
+      hasModule("leads")
+        ? count(supabase.from("leads").select("id", { count: "exact", head: true }).eq("workspace_id", ws).not("stage", "in", "(won,lost)"))
+        : Promise.resolve(null),
+      showMoney
+        ? supabase.from("invoices_with_status").select("display_status, balance_due, total").eq("workspace_id", ws).neq("status", "cancelled").then((r) => r.data ?? [])
+        : Promise.resolve([]),
+      showMoney
+        ? supabase.from("invoice_payments").select("amount, paid_on").eq("workspace_id", ws).gte("paid_on", from).then((r) => r.data ?? [])
+        : Promise.resolve([]),
+      !admin ? Promise.resolve([]) : supabase.from("activity_logs").select("*").eq("workspace_id", ws).order("created_at", { ascending: false }).limit(15).then((r) => r.data ?? []),
+    ]);
 
-      const m = lastMonths();
-      for (const p of payments) {
-        const bucket = m.find((x) => x.key === p.paid_on.slice(0, 7));
-        if (bucket) bucket.total += Number(p.amount);
-      }
-      const open = invoices.filter((i) => i.display_status === "pending" || i.display_status === "overdue");
-      const list: Kpi[] = [{ label: "Active clients", value: String(clients), to: "clients" }];
-      if (work !== null) list.push({ label: "Ongoing work items", value: String(work), to: "work" });
-      if (leads !== null) list.push({ label: "Active leads", value: String(leads), to: "leads" });
-      if (showMoney) {
-        list.push({ label: "Pending invoices", value: `${open.length} · ${inr(open.reduce((s, i) => s + Number(i.balance_due), 0))}`, to: "invoices" });
-        list.push({ label: "Collected this month", value: inr(m[m.length - 1].total), to: "invoices" });
-      }
-      const group = (s: string) => invoices.filter((i) => i.display_status === s);
-      setBilling(
-        [
-          ["paid", "Paid", "bg-green-600"],
-          ["pending", "Pending", "bg-amber-500"],
-          ["overdue", "Overdue", "bg-red-600"],
-          ["draft", "Draft", "bg-slate-400"],
-        ].map(([s, label, tone]) => ({
-          label,
-          tone,
-          count: group(s).length,
-          amount: group(s).reduce((sum, i) => sum + Number(s === "paid" ? i.total : i.balance_due), 0),
-        })),
-      );
-      setKpis(list);
-      setMonths(m);
-      setActivity(logs);
-    })();
+    const m = lastMonths();
+    for (const p of payments) {
+      const bucket = m.find((x) => x.key === p.paid_on.slice(0, 7));
+      if (bucket) bucket.total += Number(p.amount);
+    }
+    const open = invoices.filter((i) => i.display_status === "pending" || i.display_status === "overdue");
+    const list: Kpi[] = [{ label: "Active clients", value: String(clients), to: "clients" }];
+    if (work !== null) list.push({ label: "Ongoing work items", value: String(work), to: "work" });
+    if (leads !== null) list.push({ label: "Active leads", value: String(leads), to: "leads" });
+    if (showMoney) {
+      list.push({ label: "Pending invoices", value: `${open.length} · ${inr(open.reduce((s, i) => s + Number(i.balance_due), 0))}`, to: "invoices" });
+      list.push({ label: "Collected this month", value: inr(m[m.length - 1].total), to: "invoices" });
+    }
+    const group = (s: string) => invoices.filter((i) => i.display_status === s);
+    setBilling(
+      [
+        ["paid", "Paid", "bg-green-600"],
+        ["pending", "Pending", "bg-amber-500"],
+        ["overdue", "Overdue", "bg-red-600"],
+        ["draft", "Draft", "bg-slate-400"],
+      ].map(([s, label, tone]) => ({
+        label,
+        tone,
+        count: group(s).length,
+        amount: group(s).reduce((sum, i) => sum + Number(s === "paid" ? i.total : i.balance_due), 0),
+      })),
+    );
+    setKpis(list);
+    setMonths(m);
+    setActivity(logs);
   }, [workspace.id, hasModule, showMoney, admin]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useLiveTable(["work_items", "leads", "invoices", "clients"], `workspace_id=eq.${workspace.id}`, load, { delay: 1000 });
 
   const actions = [
     { label: "Log a lead", to: "leads", show: hasModule("leads") },

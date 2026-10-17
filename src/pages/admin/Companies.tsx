@@ -168,6 +168,7 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
               <RecordPayment w={w} plans={plans} onChanged={onChanged} />
               <Details w={w} onChanged={onChanged} />
               <OwnerPin w={w} />
+              <FileAttachments w={w} onChanged={onChanged} />
             </div>
           </td>
         </tr>
@@ -357,6 +358,37 @@ function Details({ w, onChanged }: { w: Row; onChanged: () => void }) {
         <div className="sm:col-span-2"><Button variant="secondary">Save details</Button></div>
       </form>
       {msg && <div className="mt-3"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+    </Panel>
+  );
+}
+
+// Off by default so files don't fill the R2 storage. Logos, photos and renewal receipts work either way.
+function FileAttachments({ w, onChanged }: { w: Row; onChanged: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const on = w.attachments_enabled;
+
+  async function toggle() {
+    setBusy(true);
+    setError("");
+    const { error } = await supabase.from("workspaces").update({ attachments_enabled: !on }).eq("id", w.id);
+    setBusy(false);
+    if (error) return setError(error.message);
+    onChanged();
+  }
+
+  return (
+    <Panel title="File attachments">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm">
+          File attachments: <span className={on ? "font-semibold text-green-700" : "font-semibold text-slate-600"}>{on ? "On" : "Off"}</span>
+        </span>
+        <Button variant="secondary" disabled={busy} onClick={toggle}>
+          {busy ? "Saving…" : on ? "Turn off" : "Turn on"}
+        </Button>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Lets this company upload files to tasks, clients, leads and invoices. Uses your R2 storage.</p>
+      {error && <div className="mt-3"><Alert>{error}</Alert></div>}
     </Panel>
   );
 }

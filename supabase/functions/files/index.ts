@@ -26,6 +26,8 @@ const R2_BUCKET = Deno.env.get("R2_BUCKET");
 const MAX_BYTES = 20 * 1024 * 1024;
 const LINK_SECONDS = 600;
 const ENTITY_TYPES = ["work_item", "client", "lead", "invoice", "workspace", "profile", "renewal", "lead_form"];
+// Attachments the Super Admin switches on per company (workspaces.attachments_enabled).
+const ATTACHMENT_TYPES = ["work_item", "client", "lead", "invoice"];
 // No HTML, SVG or scripts: they could run code when opened.
 const ALLOWED = /^(image\/(png|jpe?g|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(zip|x-zip-compressed|msword|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.[a-z.]+)|video\/(mp4|quicktime|webm)|audio\/(mpeg|mp4|ogg|wav))$/;
 
@@ -102,6 +104,10 @@ async function upload(req: Request) {
     ? await caller.db.rpc("is_workspace_admin", { ws: workspaceId })
     : await caller.db.rpc("can_write", { ws: workspaceId });
   if (!allowed) return fail(403, "You can't upload files to this company right now.");
+  if (ATTACHMENT_TYPES.includes(entityType)) {
+    const { data: ws } = await caller.db.from("workspaces").select("attachments_enabled").eq("id", workspaceId).maybeSingle();
+    if (!ws?.attachments_enabled) return fail(403, "File uploads are turned off for this company.");
+  }
 
   const key = `${workspaceId}/${entityType}/${crypto.randomUUID()}/${safeName(file.name)}`;
   const put = await r2!.fetch(objectUrl(key), {
