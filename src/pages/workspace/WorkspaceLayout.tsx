@@ -108,6 +108,7 @@ export default function WorkspaceLayout() {
         ctx.hasModule("leads") && { to: "leads", label: "Leads", icon: "leads", badge: counts.newLeads },
         ctx.hasModule("leads") && { to: "follow-ups", label: "Follow-ups", icon: "phone", badge: counts.dueFollowUps },
         ctx.hasModule("leads") && admin && { to: "lead-forms", label: "Lead forms", icon: "forms" },
+        ctx.hasModule("leads") && admin && { to: "lead-assignment", label: "Lead assignment", icon: "swap" },
         { to: "clients", label: "Clients", icon: "clients" },
       ],
     },

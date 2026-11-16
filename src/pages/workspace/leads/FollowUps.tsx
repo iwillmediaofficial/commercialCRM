@@ -55,6 +55,28 @@ export default function FollowUps() {
   const [who, setWho] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, tick] = useState(0);
+  // Your place in the automatic lead rotation (null = not in it).
+  const [away, setAwayState] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!me) return;
+    supabase
+      .from("lead_assignment_members")
+      .select("is_away, in_rotation")
+      .eq("workspace_id", workspace.id)
+      .eq("user_id", me)
+      .then(({ data }) => {
+        const rows = (data ?? []).filter((r) => r.in_rotation);
+        setAwayState(rows.length ? rows.some((r) => r.is_away) : null);
+      });
+  }, [workspace.id, me]);
+
+  async function toggleAway(next: boolean) {
+    setError("");
+    const { error } = await supabase.rpc("set_my_lead_away", { p_workspace_id: workspace.id, p_away: next });
+    if (error) return setError(error.message);
+    setAwayState(next);
+  }
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -125,6 +147,16 @@ export default function FollowUps() {
             {!isAdmin && " · your leads"}
           </p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {away !== null && canWrite && (
+          <label
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ring-1 ${away ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-green-50 text-green-800 ring-green-200"}`}
+            title="When you're away, new leads skip you and go to the next person."
+          >
+            <input type="checkbox" checked={!away} onChange={(e) => toggleAway(!e.target.checked)} />
+            {away ? "Away: not getting new leads" : "Getting new leads"}
+          </label>
+        )}
         {isAdmin && (
           <Select className="!w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose follow-ups">
             <option value="">Everyone</option>
@@ -135,6 +167,7 @@ export default function FollowUps() {
             ))}
           </Select>
         )}
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}

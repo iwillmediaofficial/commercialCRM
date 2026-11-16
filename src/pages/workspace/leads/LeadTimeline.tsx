@@ -66,14 +66,17 @@ function describe(a: Activity, people: Person[], forms: Record<string, { title: 
   switch (a.kind) {
     case "created": {
       const form = str(d.form_id) ? forms[str(d.form_id)!] : undefined;
-      if (form) return `Lead came in from the form "${form.title}"`;
-      if (!a.created_by) return "Lead came in from a lead form";
-      return `Lead added${str(d.source) ? ` (source: ${str(d.source)})` : ""}`;
+      const auto = d.auto === true && d.assigned_to ? ` · auto-assigned to ${who(d.assigned_to)}` : "";
+      if (form) return `Lead came in from the form "${form.title}"${auto}`;
+      if (!a.created_by) return `Lead came in from a lead form${auto}`;
+      return `Lead added${str(d.source) ? ` (source: ${str(d.source)})` : ""}${auto}`;
     }
     case "stage":
       return `Moved from ${STAGE_LABEL[str(d.from) as Stage] ?? d.from} to ${STAGE_LABEL[str(d.to) as Stage] ?? d.to}${str(d.reason) ? ` (reason: ${str(d.reason)})` : ""}`;
     case "assigned":
       if (!d.to) return `Unassigned (was ${who(d.from)})`;
+      if (d.reason === "not_contacted")
+        return `Passed on from ${who(d.from)} to ${who(d.to)}: not contacted within ${typeof d.minutes === "number" ? `${d.minutes} minutes` : "the time limit"}`;
       return d.from ? `Reassigned from ${who(d.from)} to ${who(d.to)}` : `Assigned to ${who(d.to)}`;
     case "follow_up": {
       // Older entries hold dates, newer ones date and time.

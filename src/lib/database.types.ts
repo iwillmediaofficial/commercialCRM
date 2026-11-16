@@ -780,6 +780,42 @@ export type Database = {
           },
         ]
       }
+      lead_assignment_members: {
+        Row: {
+          created_at: string
+          form_id: string | null
+          id: string
+          in_rotation: boolean
+          is_away: boolean
+          last_assigned_at: string | null
+          position: number
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          form_id?: string | null
+          id?: string
+          in_rotation?: boolean
+          is_away?: boolean
+          last_assigned_at?: string | null
+          position?: number
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string | null
+          id?: string
+          in_rotation?: boolean
+          is_away?: boolean
+          last_assigned_at?: string | null
+          position?: number
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       lead_forms: {
         Row: {
           banner_path: string | null
@@ -797,6 +833,7 @@ export type Database = {
           title: string
           updated_at: string
           workspace_id: string
+          own_rotation: boolean
         }
         Insert: {
           banner_path?: string | null
@@ -814,6 +851,7 @@ export type Database = {
           title: string
           updated_at?: string
           workspace_id: string
+          own_rotation?: boolean
         }
         Update: {
           banner_path?: string | null
@@ -831,6 +869,7 @@ export type Database = {
           title?: string
           updated_at?: string
           workspace_id?: string
+          own_rotation?: boolean
         }
         Relationships: [
           {
@@ -873,6 +912,9 @@ export type Database = {
           value: number | null
           won_at: string | null
           workspace_id: string
+          assigned_at: string | null
+          auto_assigned: boolean
+          pass_on_count: number
         }
         Insert: {
           assigned_to?: string | null
@@ -904,6 +946,9 @@ export type Database = {
           value?: number | null
           won_at?: string | null
           workspace_id: string
+          assigned_at?: string | null
+          auto_assigned?: boolean
+          pass_on_count?: number
         }
         Update: {
           assigned_to?: string | null
@@ -935,6 +980,9 @@ export type Database = {
           value?: number | null
           won_at?: string | null
           workspace_id?: string
+          assigned_at?: string | null
+          auto_assigned?: boolean
+          pass_on_count?: number
         }
         Relationships: [
           {
@@ -1656,6 +1704,9 @@ export type Database = {
           updated_at: string
           website: string | null
           workspace_id: string
+          auto_assign_enabled: boolean
+          auto_assign_manual: boolean
+          pass_on_minutes: number | null
         }
         Insert: {
           address?: string | null
@@ -1683,6 +1734,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id: string
+          auto_assign_enabled?: boolean
+          auto_assign_manual?: boolean
+          pass_on_minutes?: number | null
         }
         Update: {
           address?: string | null
@@ -1710,6 +1764,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id?: string
+          auto_assign_enabled?: boolean
+          auto_assign_manual?: boolean
+          pass_on_minutes?: number | null
         }
         Relationships: [
           {
@@ -2064,6 +2121,10 @@ export type Database = {
         Returns: undefined
       }
       revoke_access_pin: { Args: { p_pin_id: string }; Returns: undefined }
+      set_my_lead_away: {
+        Args: { p_away: boolean; p_workspace_id: string }
+        Returns: undefined
+      }
       run_recurring_billing: {
         Args: { p_workspace_id: string }
         Returns: number

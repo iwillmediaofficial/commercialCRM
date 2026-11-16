@@ -23,6 +23,7 @@ const Billing = lazy(() => import("./pages/workspace/Billing"));
 const Leads = lazy(() => import("./pages/workspace/leads/Leads"));
 const LeadForms = lazy(() => import("./pages/workspace/leads/LeadForms"));
 const FollowUps = lazy(() => import("./pages/workspace/leads/FollowUps"));
+const LeadAssignment = lazy(() => import("./pages/workspace/leads/LeadAssignment"));
 const Clients = lazy(() => import("./pages/workspace/clients/Clients"));
 const Work = lazy(() => import("./pages/workspace/work/Work"));
 const Timesheets = lazy(() => import("./pages/workspace/time/Timesheets"));
@@ -85,6 +86,7 @@ const router = createBrowserRouter([
           { index: true, element: <Dashboard /> },
           { path: "leads", element: <Leads /> },
           { path: "follow-ups", element: <FollowUps /> },
+          { path: "lead-assignment", element: <LeadAssignment /> },
           { path: "lead-forms", element: <LeadForms /> },
           { path: "clients", element: <Clients /> },
           { path: "work", element: <Work /> },
