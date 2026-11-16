@@ -726,6 +726,60 @@ export type Database = {
           },
         ]
       }
+      lead_activities: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          details: Json
+          edited_at: string | null
+          id: string
+          kind: string
+          lead_id: string
+          outcome: string | null
+          workspace_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          edited_at?: string | null
+          id?: string
+          kind: string
+          lead_id: string
+          outcome?: string | null
+          workspace_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          edited_at?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string
+          outcome?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_activities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_forms: {
         Row: {
           banner_path: string | null
@@ -801,6 +855,8 @@ export type Database = {
           form_answers: Json | null
           form_id: string | null
           id: string
+          last_remark: string | null
+          last_remark_at: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -825,6 +881,8 @@ export type Database = {
           form_answers?: Json | null
           form_id?: string | null
           id?: string
+          last_remark?: string | null
+          last_remark_at?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -849,6 +907,8 @@ export type Database = {
           form_answers?: Json | null
           form_id?: string | null
           id?: string
+          last_remark?: string | null
+          last_remark_at?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -1662,7 +1722,9 @@ export type Database = {
           plan_id: string
           slug: string
           state: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at: string
           valid_until: string
         }
@@ -1681,7 +1743,9 @@ export type Database = {
           plan_id: string
           slug: string
           state?: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend?:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at?: string
           valid_until: string
         }
@@ -1700,7 +1764,9 @@ export type Database = {
           plan_id?: string
           slug?: string
           state?: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend?:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at?: string
           valid_until?: string
         }
@@ -1947,6 +2013,12 @@ export type Database = {
         Args: { ws: string }
         Returns: Database["public"]["Enums"]["member_role"]
       }
+      my_inactive_companies: {
+        Args: never
+        Returns: {
+          name: string
+        }[]
+      }
       pin_check: {
         Args: {
           p_client_key: string
@@ -1967,7 +2039,10 @@ export type Database = {
         }
         Returns: Json
       }
-      my_inactive_companies: { Args: never; Returns: { name: string }[] }
+      pin_record_failure: {
+        Args: { p_client_key: string; p_email: string }
+        Returns: undefined
+      }
       public_site_info: { Args: never; Returns: Json }
       reject_renewal: {
         Args: { p_reason: string; p_request_id: string }

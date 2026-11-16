@@ -6,6 +6,7 @@ import { date } from "../../../lib/format";
 import { Alert, Button, Field, Input, Modal, Select, Textarea } from "../../../components/ui";
 import { Attachments } from "../../../components/Files";
 import { SOURCES, STAGES, humanize, type FormField, type Stage } from "./leadShared";
+import LeadTimeline, { ago } from "./LeadTimeline";
 
 export type Lead = Tables<"leads">;
 
@@ -33,8 +34,9 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
     score: lead?.score != null ? String(lead.score) : "",
     assigned_to: lead ? lead.assigned_to ?? "" : me,
     follow_up_date: lead?.follow_up_date ?? "",
-    notes: lead?.notes ?? "",
+    first_remark: "",
   });
+  const [tab, setTab] = useState<"details" | "timeline">("details");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
@@ -63,15 +65,28 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
       score: score == null ? null : Math.round(score),
       assigned_to: v.assigned_to || null,
       follow_up_date: v.follow_up_date || null,
-      notes: v.notes.trim() || null,
     };
     setBusy(true);
     const res = lead
       ? await supabase.from("leads").update(row).eq("workspace_id", workspace.id).eq("id", lead.id).select().single()
       : await supabase.from("leads").insert({ ...row, workspace_id: workspace.id, created_by: me }).select().single();
+    if (res.error) {
+      setBusy(false);
+      return setError(res.error.message);
+    }
+    let saved = res.data;
+    if (!lead && v.first_remark.trim()) {
+      const r = await supabase
+        .from("lead_activities")
+        .insert({ workspace_id: workspace.id, lead_id: saved.id, kind: "remark", body: v.first_remark.trim(), created_by: me });
+      if (r.error) {
+        setBusy(false);
+        return setError(`The lead was added, but the remark wasn't saved: ${r.error.message}`);
+      }
+      saved = { ...saved, last_remark: v.first_remark.trim().slice(0, 300), last_remark_at: new Date().toISOString() };
+    }
     setBusy(false);
-    if (res.error) return setError(res.error.message);
-    onSaved(res.data, lead ? (lead.stage as Stage) : null);
+    onSaved(saved, lead ? (lead.stage as Stage) : null);
   }
 
   async function remove() {
@@ -90,7 +105,31 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
   const labelFor = (k: string) => form?.fields.find((f) => f.key === k)?.label ?? humanize(k);
 
   return (
-    <Modal title={lead ? (readOnly ? lead.name : "Edit lead") : "Add lead"} onClose={onClose} wide>
+    <Modal title={lead ? (readOnly ? lead.name : `Lead: ${lead.name}`) : "Add lead"} onClose={onClose} wide>
+      {lead && (
+        <div className="mb-4 flex gap-1 border-b border-slate-200" role="tablist">
+          {([["details", "Details"], ["timeline", "Timeline"]] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {lead && tab === "timeline" ? (
+        <div className="space-y-4">
+          <LeadTimeline leadId={lead.id} people={people} me={me} forms={formFields} />
+          <div className="flex justify-end">
+            <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      ) : (
       <form className="space-y-4" onSubmit={save}>
         {error && <Alert>{error}</Alert>}
         {lead?.converted_client_id && <Alert tone="success">This lead is already a client.</Alert>}
@@ -134,12 +173,27 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
           <Field label="Follow-up date">
             <Input type="date" value={v.follow_up_date} onChange={set("follow_up_date")} />
           </Field>
-          <div className="sm:col-span-2">
-            <Field label="Notes">
-              <Textarea rows={4} value={v.notes} onChange={set("notes")} />
-            </Field>
-          </div>
+          {!lead && (
+            <div className="sm:col-span-2">
+              <Field label="First remark" hint="Optional. It goes on the lead's timeline, where you can add more later.">
+                <Textarea rows={3} maxLength={5000} value={v.first_remark} onChange={set("first_remark")} />
+              </Field>
+            </div>
+          )}
         </fieldset>
+
+        {lead?.last_remark && (
+          <button
+            type="button"
+            onClick={() => setTab("timeline")}
+            className="block w-full rounded-md bg-indigo-50/60 p-3 text-left ring-1 ring-indigo-100 hover:bg-indigo-50"
+          >
+            <span className="mb-1 block text-xs font-medium text-indigo-700">
+              Latest remark{lead.last_remark_at ? ` · ${ago(lead.last_remark_at)}` : ""} · see timeline
+            </span>
+            <span className="line-clamp-2 whitespace-pre-wrap break-words text-sm text-slate-800">{lead.last_remark}</span>
+          </button>
+        )}
 
         {lead?.form_id !== undefined && lead?.form_id !== null && (
           <div className="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
@@ -193,6 +247,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
           </div>
         </div>
       </form>
+      )}
     </Modal>
   );
 }

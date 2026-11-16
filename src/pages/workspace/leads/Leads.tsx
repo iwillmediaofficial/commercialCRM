@@ -10,6 +10,7 @@ import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../..
 import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
 import { localDay } from "../time/timeUtil";
+import { ago } from "./LeadTimeline";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
 type View = "board" | "table";
@@ -94,6 +95,31 @@ export default function Leads() {
     }
   }
 
+  // Leads whose older remarks match the search (the latest remark is on the lead itself).
+  const [remarkHits, setRemarkHits] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 3) {
+      setRemarkHits(new Set());
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("lead_activities")
+        .select("lead_id")
+        .eq("workspace_id", workspace.id)
+        .in("kind", ["remark", "call", "whatsapp", "meeting"])
+        .ilike("body", `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+        .limit(500);
+      if (!cancelled) setRemarkHits(new Set((data ?? []).map((r) => r.lead_id)));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [q, workspace.id]);
+
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (leads ?? []).filter((l) => {
@@ -101,9 +127,9 @@ export default function Leads() {
       if (source && l.source !== source) return false;
       if (assignee === "none" ? l.assigned_to : assignee && l.assigned_to !== assignee) return false;
       if (!term) return true;
-      return [l.name, l.phone, l.email, l.company, l.notes].some((x) => x?.toLowerCase().includes(term));
+      return remarkHits.has(l.id) || [l.name, l.phone, l.email, l.company, l.last_remark].some((x) => x?.toLowerCase().includes(term));
     });
-  }, [leads, q, stage, source, assignee, view]);
+  }, [leads, q, stage, source, assignee, view, remarkHits]);
 
   const sourceOptions = useMemo(() => {
     const extra = (leads ?? []).map((l) => l.source).filter((s) => !SOURCES.includes(s));
@@ -211,8 +237,8 @@ export default function Leads() {
             onClick={() =>
               downloadCsv(
                 "leads.csv",
-                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Value", "Score", "Assigned to", "Follow-up", "Added"],
-                filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.value, l.score, nameOf(people, l.assigned_to), l.follow_up_date, l.created_at.slice(0, 10)]),
+                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Value", "Score", "Assigned to", "Follow-up", "Last remark", "Added"],
+                filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.value, l.score, nameOf(people, l.assigned_to), l.follow_up_date, l.last_remark, l.created_at.slice(0, 10)]),
               )
             }
           >
@@ -225,7 +251,7 @@ export default function Leads() {
       {error && <Alert>{error}</Alert>}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Input type="search" placeholder="Search name, phone, email, company" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input type="search" placeholder="Search name, phone, company, remarks" value={q} onChange={(e) => setQ(e.target.value)} />
         {view === "table" && (
           <Select value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">
             <option value="">All stages</option>
@@ -296,6 +322,12 @@ export default function Leads() {
                           {l.score != null && <Badge tone={l.score >= 70 ? "bg-green-100 text-green-800" : l.score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}>Score {l.score}</Badge>}
                           {l.converted_client_id && <Badge tone="bg-green-100 text-green-800">Client</Badge>}
                         </div>
+                        {l.last_remark && (
+                          <p className="mt-2 line-clamp-2 break-words text-xs text-slate-600" title={l.last_remark}>
+                            <span className="text-slate-400">{l.last_remark_at ? `${ago(l.last_remark_at)}: ` : ""}</span>
+                            {l.last_remark}
+                          </p>
+                        )}
                         {(l.assigned_to || l.follow_up_date) && (
                           <div className="mt-2 flex justify-between gap-2 text-xs">
                             <span className="truncate text-slate-500">{nameOf(people, l.assigned_to)}</span>
@@ -315,7 +347,7 @@ export default function Leads() {
         <Card>
           {filtered.length ? (
             <div className="-mx-5 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-5 py-2 font-medium">Lead</th>
@@ -324,6 +356,7 @@ export default function Leads() {
                     <th className="px-2 py-2 font-medium">Stage</th>
                     <th className="px-2 py-2 text-right font-medium">Value</th>
                     <th className="px-2 py-2 font-medium">Assigned</th>
+                    <th className="px-2 py-2 font-medium">Last remark</th>
                     <th className="px-5 py-2 font-medium">Follow-up</th>
                   </tr>
                 </thead>
@@ -355,6 +388,14 @@ export default function Leads() {
                       </td>
                       <td className="px-2 py-2 text-right">{l.value != null ? inr(l.value) : ""}</td>
                       <td className="px-2 py-2">{nameOf(people, l.assigned_to)}</td>
+                      <td className="max-w-[220px] px-2 py-2 text-xs text-slate-600">
+                        {l.last_remark && (
+                          <>
+                            <div className="truncate" title={l.last_remark}>{l.last_remark}</div>
+                            {l.last_remark_at && <div className="text-slate-400">{ago(l.last_remark_at)}</div>}
+                          </>
+                        )}
+                      </td>
                       <td className={`px-5 py-2 ${followUpTone(l.follow_up_date)}`}>{date(l.follow_up_date)}</td>
                     </tr>
                   ))}
