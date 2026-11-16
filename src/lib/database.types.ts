@@ -726,6 +726,96 @@ export type Database = {
           },
         ]
       }
+      lead_activities: {
+        Row: {
+          body: string | null
+          created_at: string
+          created_by: string | null
+          details: Json
+          edited_at: string | null
+          id: string
+          kind: string
+          lead_id: string
+          outcome: string | null
+          workspace_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          edited_at?: string | null
+          id?: string
+          kind: string
+          lead_id: string
+          outcome?: string | null
+          workspace_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json
+          edited_at?: string | null
+          id?: string
+          kind?: string
+          lead_id?: string
+          outcome?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_activities_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_activities_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_assignment_members: {
+        Row: {
+          created_at: string
+          form_id: string | null
+          id: string
+          in_rotation: boolean
+          is_away: boolean
+          last_assigned_at: string | null
+          position: number
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          form_id?: string | null
+          id?: string
+          in_rotation?: boolean
+          is_away?: boolean
+          last_assigned_at?: string | null
+          position?: number
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          form_id?: string | null
+          id?: string
+          in_rotation?: boolean
+          is_away?: boolean
+          last_assigned_at?: string | null
+          position?: number
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       lead_forms: {
         Row: {
           banner_path: string | null
@@ -743,6 +833,7 @@ export type Database = {
           title: string
           updated_at: string
           workspace_id: string
+          own_rotation: boolean
         }
         Insert: {
           banner_path?: string | null
@@ -760,6 +851,7 @@ export type Database = {
           title: string
           updated_at?: string
           workspace_id: string
+          own_rotation?: boolean
         }
         Update: {
           banner_path?: string | null
@@ -777,6 +869,7 @@ export type Database = {
           title?: string
           updated_at?: string
           workspace_id?: string
+          own_rotation?: boolean
         }
         Relationships: [
           {
@@ -801,6 +894,13 @@ export type Database = {
           form_answers: Json | null
           form_id: string | null
           id: string
+          last_remark: string | null
+          last_remark_at: string | null
+          first_contacted_at: string | null
+          follow_up_at: string | null
+          follow_up_notified_at: string | null
+          last_contacted_at: string | null
+          lost_reason: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -812,6 +912,9 @@ export type Database = {
           value: number | null
           won_at: string | null
           workspace_id: string
+          assigned_at: string | null
+          auto_assigned: boolean
+          pass_on_count: number
         }
         Insert: {
           assigned_to?: string | null
@@ -825,6 +928,13 @@ export type Database = {
           form_answers?: Json | null
           form_id?: string | null
           id?: string
+          last_remark?: string | null
+          last_remark_at?: string | null
+          first_contacted_at?: string | null
+          follow_up_at?: string | null
+          follow_up_notified_at?: string | null
+          last_contacted_at?: string | null
+          lost_reason?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -836,6 +946,9 @@ export type Database = {
           value?: number | null
           won_at?: string | null
           workspace_id: string
+          assigned_at?: string | null
+          auto_assigned?: boolean
+          pass_on_count?: number
         }
         Update: {
           assigned_to?: string | null
@@ -849,6 +962,13 @@ export type Database = {
           form_answers?: Json | null
           form_id?: string | null
           id?: string
+          last_remark?: string | null
+          last_remark_at?: string | null
+          first_contacted_at?: string | null
+          follow_up_at?: string | null
+          follow_up_notified_at?: string | null
+          last_contacted_at?: string | null
+          lost_reason?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
@@ -860,6 +980,9 @@ export type Database = {
           value?: number | null
           won_at?: string | null
           workspace_id?: string
+          assigned_at?: string | null
+          auto_assigned?: boolean
+          pass_on_count?: number
         }
         Relationships: [
           {
@@ -1581,6 +1704,9 @@ export type Database = {
           updated_at: string
           website: string | null
           workspace_id: string
+          auto_assign_enabled: boolean
+          auto_assign_manual: boolean
+          pass_on_minutes: number | null
         }
         Insert: {
           address?: string | null
@@ -1608,6 +1734,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id: string
+          auto_assign_enabled?: boolean
+          auto_assign_manual?: boolean
+          pass_on_minutes?: number | null
         }
         Update: {
           address?: string | null
@@ -1635,6 +1764,9 @@ export type Database = {
           updated_at?: string
           website?: string | null
           workspace_id?: string
+          auto_assign_enabled?: boolean
+          auto_assign_manual?: boolean
+          pass_on_minutes?: number | null
         }
         Relationships: [
           {
@@ -1662,7 +1794,9 @@ export type Database = {
           plan_id: string
           slug: string
           state: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at: string
           valid_until: string
         }
@@ -1681,7 +1815,9 @@ export type Database = {
           plan_id: string
           slug: string
           state?: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend?:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at?: string
           valid_until: string
         }
@@ -1700,7 +1836,9 @@ export type Database = {
           plan_id?: string
           slug?: string
           state?: Database["public"]["Enums"]["subscription_state"]
-          state_before_suspend?: Database["public"]["Enums"]["subscription_state"] | null
+          state_before_suspend?:
+            | Database["public"]["Enums"]["subscription_state"]
+            | null
           updated_at?: string
           valid_until?: string
         }
@@ -1947,6 +2085,12 @@ export type Database = {
         Args: { ws: string }
         Returns: Database["public"]["Enums"]["member_role"]
       }
+      my_inactive_companies: {
+        Args: never
+        Returns: {
+          name: string
+        }[]
+      }
       pin_check: {
         Args: {
           p_client_key: string
@@ -1967,13 +2111,20 @@ export type Database = {
         }
         Returns: Json
       }
-      my_inactive_companies: { Args: never; Returns: { name: string }[] }
+      pin_record_failure: {
+        Args: { p_client_key: string; p_email: string }
+        Returns: undefined
+      }
       public_site_info: { Args: never; Returns: Json }
       reject_renewal: {
         Args: { p_reason: string; p_request_id: string }
         Returns: undefined
       }
       revoke_access_pin: { Args: { p_pin_id: string }; Returns: undefined }
+      set_my_lead_away: {
+        Args: { p_away: boolean; p_workspace_id: string }
+        Returns: undefined
+      }
       run_recurring_billing: {
         Args: { p_workspace_id: string }
         Returns: number

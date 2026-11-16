@@ -13,13 +13,20 @@ import { AppShell, UserMenu, type NavGroup } from "../../components/AppShell";
 import { WorkspaceSearch } from "../../components/Search";
 import { date, daysLeft } from "../../lib/format";
 
+function endOfToday() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d.toISOString();
+}
+
 export default function WorkspaceLayout() {
   const { slug } = useParams();
-  const { memberships, isPlatformAdmin } = useAuth();
+  const { memberships, isPlatformAdmin, session } = useAuth();
+  const me = session?.user.id ?? "";
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null);
   const [missing, setMissing] = useState(false);
   const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [counts, setCounts] = useState({ newLeads: 0, dueWork: 0 });
+  const [counts, setCounts] = useState({ newLeads: 0, dueWork: 0, dueFollowUps: 0 });
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -80,8 +87,13 @@ export default function WorkspaceLayout() {
         ? supabase.from("work_items").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId)
             .neq("status", "completed").lte("due_date", today)
         : null,
-    ]).then(([l, w]) => setCounts({ newLeads: l?.count ?? 0, dueWork: w?.count ?? 0 }));
-  }, [workspaceId, hasLeads, hasWork, pathname]);
+      // Your own follow-ups due by the end of today.
+      hasLeads && me
+        ? supabase.from("leads").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId)
+            .eq("assigned_to", me).not("stage", "in", "(won,lost)").lte("follow_up_at", endOfToday())
+        : null,
+    ]).then(([l, w, f]) => setCounts({ newLeads: l?.count ?? 0, dueWork: w?.count ?? 0, dueFollowUps: f?.count ?? 0 }));
+  }, [workspaceId, hasLeads, hasWork, pathname, me]);
 
   if (missing) return <Navigate to="/" replace />;
   if (!ctx) return <Spinner />;
@@ -94,7 +106,9 @@ export default function WorkspaceLayout() {
       label: "Sales",
       items: [
         ctx.hasModule("leads") && { to: "leads", label: "Leads", icon: "leads", badge: counts.newLeads },
+        ctx.hasModule("leads") && { to: "follow-ups", label: "Follow-ups", icon: "phone", badge: counts.dueFollowUps },
         ctx.hasModule("leads") && admin && { to: "lead-forms", label: "Lead forms", icon: "forms" },
+        ctx.hasModule("leads") && admin && { to: "lead-assignment", label: "Lead assignment", icon: "swap" },
         { to: "clients", label: "Clients", icon: "clients" },
       ],
     },

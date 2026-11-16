@@ -5,11 +5,12 @@ import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
 import { useLiveTable } from "../../../lib/realtime";
 import { nameOf, useMembers } from "../../../lib/members";
-import { date, downloadCsv, inr } from "../../../lib/format";
+import { downloadCsv, inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
 import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
-import { localDay } from "../time/timeUtil";
+import { LostReasonModal, followUpTone, whenLabel } from "./followUp";
+import { ago } from "./LeadTimeline";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
 type View = "board" | "table";
@@ -18,11 +19,7 @@ function byPosition(a: Lead, b: Lead) {
   return a.position - b.position || b.created_at.localeCompare(a.created_at);
 }
 
-function followUpTone(d: string | null) {
-  if (!d) return "";
-  const today = localDay();
-  return d < today ? "text-red-600" : d === today ? "text-amber-700" : "text-slate-500";
-}
+const isOpen = (l: Lead) => l.stage !== "won" && l.stage !== "lost";
 
 export default function Leads() {
   const { workspace, canWrite, isAdmin, hasModule } = useWorkspace();
@@ -49,6 +46,8 @@ export default function Leads() {
   const [converting, setConverting] = useState<Lead | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<Stage | null>(null);
+  // A move to Lost waits here until a reason is picked.
+  const [losing, setLosing] = useState<{ lead: Lead; beforeId: string | null; quick: boolean } | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -94,6 +93,31 @@ export default function Leads() {
     }
   }
 
+  // Leads whose older remarks match the search (the latest remark is on the lead itself).
+  const [remarkHits, setRemarkHits] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 3) {
+      setRemarkHits(new Set());
+      return;
+    }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("lead_activities")
+        .select("lead_id")
+        .eq("workspace_id", workspace.id)
+        .in("kind", ["remark", "call", "whatsapp", "meeting"])
+        .ilike("body", `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+        .limit(500);
+      if (!cancelled) setRemarkHits(new Set((data ?? []).map((r) => r.lead_id)));
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [q, workspace.id]);
+
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return (leads ?? []).filter((l) => {
@@ -101,9 +125,9 @@ export default function Leads() {
       if (source && l.source !== source) return false;
       if (assignee === "none" ? l.assigned_to : assignee && l.assigned_to !== assignee) return false;
       if (!term) return true;
-      return [l.name, l.phone, l.email, l.company, l.notes].some((x) => x?.toLowerCase().includes(term));
+      return remarkHits.has(l.id) || [l.name, l.phone, l.email, l.company, l.last_remark].some((x) => x?.toLowerCase().includes(term));
     });
-  }, [leads, q, stage, source, assignee, view]);
+  }, [leads, q, stage, source, assignee, view, remarkHits]);
 
   const sourceOptions = useMemo(() => {
     const extra = (leads ?? []).map((l) => l.source).filter((s) => !SOURCES.includes(s));
@@ -111,10 +135,11 @@ export default function Leads() {
   }, [leads]);
 
   // Moves a lead to a stage, before another card (or to the end), and renumbers that column.
-  async function move(id: string, to: Stage, beforeId: string | null) {
+  async function move(id: string, to: Stage, beforeId: string | null, lostReason?: string) {
     if (!leads) return;
     const lead = leads.find((l) => l.id === id);
     if (!lead || id === beforeId) return;
+    if (to === "lost" && lead.stage !== "lost" && !lostReason) return setLosing({ lead, beforeId, quick: false });
     const column = leads.filter((l) => l.stage === to && l.id !== id).sort(byPosition);
     const at = beforeId ? column.findIndex((l) => l.id === beforeId) : -1;
     column.splice(at < 0 ? column.length : at, 0, { ...lead, stage: to });
@@ -126,12 +151,13 @@ export default function Leads() {
     const prev = leads;
     const updated = new Map(changes.map(({ l, i }) => [l.id, { ...l, position: i }]));
     setLeads(leads.map((l) => updated.get(l.id) ?? l));
+    if (lead.stage !== to) load(); // picks up the cleared follow-up, contact time, etc.
     setError("");
     const results = await Promise.all(
       changes.map(({ l, i }) =>
         supabase
           .from("leads")
-          .update(l.id === id ? { stage: to, position: i } : { position: i })
+          .update(l.id === id ? { stage: to, position: i, ...(lostReason ? { lost_reason: lostReason } : {}) } : { position: i })
           .eq("workspace_id", workspace.id)
           .eq("id", l.id),
       ),
@@ -146,12 +172,19 @@ export default function Leads() {
     if (to === "won" && lead.stage !== "won" && !lead.converted_client_id) setConverting({ ...lead, stage: "won" });
   }
 
-  async function quickStage(lead: Lead, to: Stage) {
+  async function quickStage(lead: Lead, to: Stage, lostReason?: string) {
+    if (to === "lost" && lead.stage !== "lost" && !lostReason) return setLosing({ lead, beforeId: null, quick: true });
     const top = Math.min(0, ...(leads ?? []).filter((l) => l.stage === to).map((l) => l.position)) - 1;
     setError("");
-    const { error } = await supabase.from("leads").update({ stage: to, position: top }).eq("workspace_id", workspace.id).eq("id", lead.id);
+    const { data, error } = await supabase
+      .from("leads")
+      .update({ stage: to, position: top, ...(lostReason ? { lost_reason: lostReason } : {}) })
+      .eq("workspace_id", workspace.id)
+      .eq("id", lead.id)
+      .select()
+      .single();
     if (error) return setError(error.message);
-    setLeads((ls) => (ls ?? []).map((l) => (l.id === lead.id ? { ...l, stage: to, position: top } : l)));
+    setLeads((ls) => (ls ?? []).map((l) => (l.id === lead.id ? data : l)));
     if (to === "won" && !lead.converted_client_id) setConverting({ ...lead, stage: "won" });
   }
 
@@ -211,8 +244,10 @@ export default function Leads() {
             onClick={() =>
               downloadCsv(
                 "leads.csv",
-                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Value", "Score", "Assigned to", "Follow-up", "Added"],
-                filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.value, l.score, nameOf(people, l.assigned_to), l.follow_up_date, l.created_at.slice(0, 10)]),
+                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", "Next follow-up", "Last contact", "Last remark", "Added"],
+                filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
+                  l.follow_up_at ? new Date(l.follow_up_at).toLocaleString("en-IN") : "", l.last_contacted_at ? new Date(l.last_contacted_at).toLocaleString("en-IN") : "",
+                  l.last_remark, l.created_at.slice(0, 10)]),
               )
             }
           >
@@ -225,7 +260,7 @@ export default function Leads() {
       {error && <Alert>{error}</Alert>}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Input type="search" placeholder="Search name, phone, email, company" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input type="search" placeholder="Search name, phone, company, remarks" value={q} onChange={(e) => setQ(e.target.value)} />
         {view === "table" && (
           <Select value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">
             <option value="">All stages</option>
@@ -295,12 +330,23 @@ export default function Leads() {
                           <Badge>{l.source}</Badge>
                           {l.score != null && <Badge tone={l.score >= 70 ? "bg-green-100 text-green-800" : l.score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}>Score {l.score}</Badge>}
                           {l.converted_client_id && <Badge tone="bg-green-100 text-green-800">Client</Badge>}
+                          {isOpen(l) && !l.first_contacted_at && <Badge tone="bg-rose-100 text-rose-700">Not contacted</Badge>}
+                          {l.stage === "lost" && l.lost_reason && <Badge tone="bg-slate-100 text-slate-600">{l.lost_reason}</Badge>}
                         </div>
-                        {(l.assigned_to || l.follow_up_date) && (
+                        {l.last_remark && (
+                          <p className="mt-2 line-clamp-2 break-words text-xs text-slate-600" title={l.last_remark}>
+                            <span className="text-slate-400">{l.last_remark_at ? `${ago(l.last_remark_at)}: ` : ""}</span>
+                            {l.last_remark}
+                          </p>
+                        )}
+                        {(l.assigned_to || l.follow_up_at) && (
                           <div className="mt-2 flex justify-between gap-2 text-xs">
                             <span className="truncate text-slate-500">{nameOf(people, l.assigned_to)}</span>
-                            {l.follow_up_date && <span className={`shrink-0 ${followUpTone(l.follow_up_date)}`}>Follow up {date(l.follow_up_date)}</span>}
+                            {l.follow_up_at && <span className={`shrink-0 ${followUpTone(l.follow_up_at)}`}>{whenLabel(l.follow_up_at)}</span>}
                           </div>
+                        )}
+                        {l.last_contacted_at && isOpen(l) && (
+                          <div className="mt-1 text-[11px] text-slate-400">Last contact {ago(l.last_contacted_at)}</div>
                         )}
                       </article>
                     ))}
@@ -315,7 +361,7 @@ export default function Leads() {
         <Card>
           {filtered.length ? (
             <div className="-mx-5 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-5 py-2 font-medium">Lead</th>
@@ -324,7 +370,8 @@ export default function Leads() {
                     <th className="px-2 py-2 font-medium">Stage</th>
                     <th className="px-2 py-2 text-right font-medium">Value</th>
                     <th className="px-2 py-2 font-medium">Assigned</th>
-                    <th className="px-5 py-2 font-medium">Follow-up</th>
+                    <th className="px-2 py-2 font-medium">Last remark</th>
+                    <th className="px-5 py-2 font-medium">Next follow-up</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -355,7 +402,18 @@ export default function Leads() {
                       </td>
                       <td className="px-2 py-2 text-right">{l.value != null ? inr(l.value) : ""}</td>
                       <td className="px-2 py-2">{nameOf(people, l.assigned_to)}</td>
-                      <td className={`px-5 py-2 ${followUpTone(l.follow_up_date)}`}>{date(l.follow_up_date)}</td>
+                      <td className="max-w-[220px] px-2 py-2 text-xs text-slate-600">
+                        {l.last_remark && (
+                          <>
+                            <div className="truncate" title={l.last_remark}>{l.last_remark}</div>
+                            {l.last_remark_at && <div className="text-slate-400">{ago(l.last_remark_at)}</div>}
+                          </>
+                        )}
+                      </td>
+                      <td className={`whitespace-nowrap px-5 py-2 text-xs ${followUpTone(l.follow_up_at)}`}>
+                        {whenLabel(l.follow_up_at)}
+                        {isOpen(l) && !l.first_contacted_at && <div className="text-rose-600">Not contacted</div>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -389,6 +447,19 @@ export default function Leads() {
           onConvert={(l) => {
             setEditing(null);
             setConverting(l);
+          }}
+        />
+      )}
+
+      {losing && (
+        <LostReasonModal
+          name={losing.lead.name}
+          onCancel={() => setLosing(null)}
+          onConfirm={(reason) => {
+            const x = losing;
+            setLosing(null);
+            if (x.quick) quickStage(x.lead, "lost", reason);
+            else move(x.lead.id, "lost", x.beforeId, reason);
           }}
         />
       )}
