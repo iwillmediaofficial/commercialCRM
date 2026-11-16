@@ -113,7 +113,7 @@ export default function Dashboard() {
             .eq("workspace_id", ws).neq("status", "completed"))
         : none,
       hasModule("leads")
-        ? rows(supabase.from("leads").select("id, name, company, stage, value, follow_up_date, source")
+        ? rows(supabase.from("leads").select("id, name, company, stage, value, follow_up_at, first_contacted_at, created_at, assigned_to, source")
             .eq("workspace_id", ws).not("stage", "in", "(won,lost)"))
         : none,
       hasModule("leads") ? rows(supabase.from("leads").select("created_at").eq("workspace_id", ws).gte("created_at", sixAgo)) : none,
@@ -171,6 +171,20 @@ export default function Dashboard() {
         badge: { text: `+${newLeads} new`, tone: newLeads ? "green" : "slate" },
         spark: perMonth(leadDates.map((l) => l.created_at)), sparkColor: "#f59e0b", to: "leads",
       });
+    if (hasModule("leads")) {
+      const now = Date.now();
+      const endToday = new Date();
+      endToday.setHours(23, 59, 59, 999);
+      const overdueFu = leads.filter((l) => l.follow_up_at && new Date(l.follow_up_at).getTime() < now).length;
+      const dueFu = leads.filter((l) => l.follow_up_at && new Date(l.follow_up_at).getTime() <= endToday.getTime()).length;
+      const waiting = leads.filter((l) => !l.first_contacted_at && now - new Date(l.created_at).getTime() > 86_400_000).length;
+      list.push({
+        label: "Follow-ups today", icon: "phone", chip: "bg-rose-50 text-rose-600", value: String(dueFu),
+        aside: waiting ? `${waiting} not contacted in 24 h` : "Every lead contacted",
+        badge: overdueFu ? { text: `${overdueFu} overdue`, tone: "red" } : { text: "Nothing overdue", tone: "green" },
+        sparkColor: "#f43f5e", to: "follow-ups",
+      });
+    }
     if (showMoney) {
       list.push({
         label: "Pending invoices", icon: "invoice", chip: "bg-rose-50 text-rose-600",
@@ -223,13 +237,14 @@ export default function Dashboard() {
         };
       });
     const follow: DueItem[] = leads
-      .filter((l) => l.follow_up_date && l.follow_up_date <= today)
+      .filter((l) => l.follow_up_at && localDay(new Date(l.follow_up_at)) <= today)
+      .sort((a, b) => a.follow_up_at!.localeCompare(b.follow_up_at!))
       .map((l) => ({
         id: l.id,
         title: `Follow up ${l.name}`,
         sub: ["Lead", l.company || l.source].filter(Boolean).join(" · "),
-        tag: "Follow-up",
-        tone: "bg-amber-50 text-amber-700",
+        tag: new Date(l.follow_up_at!).getTime() < Date.now() ? "Overdue" : new Date(l.follow_up_at!).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+        tone: new Date(l.follow_up_at!).getTime() < Date.now() ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-700",
         to: `leads?open=${l.id}`,
       }));
     setDue([...tasks, ...follow]);
@@ -286,7 +301,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${kpis && kpis.length >= 5 ? "xl:grid-cols-5" : "xl:grid-cols-3"}`}>
+      <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${kpis?.length === 5 ? "xl:grid-cols-5" : kpis?.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
         {(kpis ?? []).map((k) => <KpiCard key={k.label} k={k} />)}
         {!kpis && Array.from({ length: 5 }, (_, i) => <div key={i} className="h-[148px] animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/70" />)}
       </div>

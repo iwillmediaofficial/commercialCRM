@@ -21,6 +21,7 @@ const RULES: [string, string, string][] = [
   ["task_assigned", "Task assigned", "Tell people when a work item is assigned to them."],
   ["due_date_reminders", "Due date reminders", "Remind assignees the day before and on the day a work item is due."],
   ["lead_assigned", "Lead assigned", "Tell people when a lead is assigned to them."],
+  ["follow_up_reminders", "Follow-up reminders", "Remind people when a lead's follow-up is due, and send each person a 9 AM summary of the day's follow-ups."],
   ["billing_alerts", "Billing alerts", "Tell admins about overdue invoices and new recurring invoices."],
   ["renewal_reminders", "Subscription renewal reminders", "Remind admins before the CRM subscription ends."],
 ];

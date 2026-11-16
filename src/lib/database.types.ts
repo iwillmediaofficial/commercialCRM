@@ -857,6 +857,11 @@ export type Database = {
           id: string
           last_remark: string | null
           last_remark_at: string | null
+          first_contacted_at: string | null
+          follow_up_at: string | null
+          follow_up_notified_at: string | null
+          last_contacted_at: string | null
+          lost_reason: string | null
           name: string
           notes: string | null
           phone: string | null
@@ -883,6 +888,11 @@ export type Database = {
           id?: string
           last_remark?: string | null
           last_remark_at?: string | null
+          first_contacted_at?: string | null
+          follow_up_at?: string | null
+          follow_up_notified_at?: string | null
+          last_contacted_at?: string | null
+          lost_reason?: string | null
           name: string
           notes?: string | null
           phone?: string | null
@@ -909,6 +919,11 @@ export type Database = {
           id?: string
           last_remark?: string | null
           last_remark_at?: string | null
+          first_contacted_at?: string | null
+          follow_up_at?: string | null
+          follow_up_notified_at?: string | null
+          last_contacted_at?: string | null
+          lost_reason?: string | null
           name?: string
           notes?: string | null
           phone?: string | null

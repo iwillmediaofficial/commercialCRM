@@ -6,6 +6,8 @@ import { nameOf, type Person } from "../../../lib/members";
 import { date } from "../../../lib/format";
 import { Alert, Button, Select, Spinner, Textarea } from "../../../components/ui";
 import { STAGE_LABEL, type Stage } from "./leadShared";
+import { QUICK_PICKS, fromLocalInput, toLocalInput, whenLabel } from "./followUp";
+import type { Lead } from "./LeadModal";
 
 export type Activity = Tables<"lead_activities">;
 
@@ -69,13 +71,16 @@ function describe(a: Activity, people: Person[], forms: Record<string, { title: 
       return `Lead added${str(d.source) ? ` (source: ${str(d.source)})` : ""}`;
     }
     case "stage":
-      return `Moved from ${STAGE_LABEL[str(d.from) as Stage] ?? d.from} to ${STAGE_LABEL[str(d.to) as Stage] ?? d.to}`;
+      return `Moved from ${STAGE_LABEL[str(d.from) as Stage] ?? d.from} to ${STAGE_LABEL[str(d.to) as Stage] ?? d.to}${str(d.reason) ? ` (reason: ${str(d.reason)})` : ""}`;
     case "assigned":
       if (!d.to) return `Unassigned (was ${who(d.from)})`;
       return d.from ? `Reassigned from ${who(d.from)} to ${who(d.to)}` : `Assigned to ${who(d.to)}`;
-    case "follow_up":
-      if (!d.to) return "Follow-up date cleared";
-      return d.from ? `Follow-up moved from ${date(str(d.from))} to ${date(str(d.to))}` : `Follow-up set for ${date(str(d.to))}`;
+    case "follow_up": {
+      // Older entries hold dates, newer ones date and time.
+      const when = (v: unknown) => (str(v) && str(v)!.length > 10 ? whenLabel(str(v)) : date(str(v)));
+      if (!d.to) return "Follow-up cleared";
+      return d.from ? `Follow-up moved from ${when(d.from)} to ${when(d.to)}` : `Follow-up set for ${when(d.to)}`;
+    }
     case "converted":
       return "Became a client";
     default:
@@ -83,15 +88,22 @@ function describe(a: Activity, people: Person[], forms: Record<string, { title: 
   }
 }
 
+type LeadPatch = Partial<Pick<Lead, "stage" | "follow_up_at" | "follow_up_date" | "last_remark" | "last_remark_at" | "first_contacted_at" | "last_contacted_at">>;
+
 type Props = {
   leadId: string;
+  stage: string;
+  followUpAt: string | null;
+  // Set by the Call / WhatsApp buttons: pick that entry type.
+  preset?: { kind: ManualKind; n: number } | null;
+  onLeadChanged?: (patch: LeadPatch) => void;
   people: Person[];
   me: string;
   forms: Record<string, { title: string }>;
   onCount?: (n: number) => void;
 };
 
-export default function LeadTimeline({ leadId, people, me, forms, onCount }: Props) {
+export default function LeadTimeline({ leadId, stage, followUpAt, preset, onLeadChanged, people, me, forms, onCount }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const [items, setItems] = useState<Activity[] | null>(null);
   const [error, setError] = useState("");
@@ -102,6 +114,13 @@ export default function LeadTimeline({ leadId, people, me, forms, onCount }: Pro
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState("");
   const [editOutcome, setEditOutcome] = useState("");
+  const [next, setNext] = useState("keep"); // keep | quick pick key | custom | clear
+  const [custom, setCustom] = useState("");
+  const closed = stage === "won" || stage === "lost";
+
+  useEffect(() => {
+    if (preset) setKind(preset.kind);
+  }, [preset]);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -131,6 +150,12 @@ export default function LeadTimeline({ leadId, people, me, forms, onCount }: Pro
     setError("");
     if (needsText && !body.trim()) return setError(kind === "meeting" ? "Write a short note about the meeting." : "Write the remark first.");
     if (hasOutcome && !outcome && !body.trim()) return setError("Pick how it went, or add a note.");
+    let nextAt: string | null | undefined; // undefined = leave as is
+    if (!closed && next === "clear") nextAt = null;
+    else if (!closed && next === "custom") {
+      if (!custom) return setError("Pick the date and time of the next follow-up.");
+      nextAt = fromLocalInput(custom);
+    } else if (!closed && next !== "keep") nextAt = QUICK_PICKS.find((q) => q.key === next)?.at();
     setBusy(true);
     const { data, error } = await supabase
       .from("lead_activities")
@@ -144,11 +169,28 @@ export default function LeadTimeline({ leadId, people, me, forms, onCount }: Pro
       })
       .select()
       .single();
-    setBusy(false);
-    if (error) return setError(error.message);
+    if (error) {
+      setBusy(false);
+      return setError(error.message);
+    }
     setItems((xs) => [data, ...(xs ?? []).filter((x) => x.id !== data.id)]);
     setBody("");
     setOutcome("");
+    if (nextAt !== undefined) {
+      const r = await supabase.from("leads").update({ follow_up_at: nextAt }).eq("id", leadId);
+      if (r.error) setError(`Saved, but the follow-up wasn't changed: ${r.error.message}`);
+    }
+    setNext("keep");
+    setCustom("");
+    // A call can move the lead to Contacted; pass the fresh values up.
+    const { data: fresh } = await supabase
+      .from("leads")
+      .select("stage, follow_up_at, follow_up_date, last_remark, last_remark_at, first_contacted_at, last_contacted_at")
+      .eq("id", leadId)
+      .maybeSingle();
+    setBusy(false);
+    if (fresh) onLeadChanged?.(fresh);
+    load();
   }
 
   async function saveEdit(a: Activity) {
@@ -217,6 +259,42 @@ export default function LeadTimeline({ leadId, people, me, forms, onCount }: Pro
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+          {!closed && (
+            <div className="space-y-1.5">
+              <div className="text-xs font-medium text-slate-600">
+                Next follow-up{" "}
+                <span className="font-normal text-slate-500">(now: {followUpAt ? whenLabel(followUpAt) : "none"})</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { key: "keep", label: "Keep as is" },
+                  ...QUICK_PICKS,
+                  { key: "custom", label: "Pick date & time" },
+                  ...(followUpAt ? [{ key: "clear", label: "No follow-up" }] : []),
+                ].map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    onClick={() => {
+                      setNext(o.key);
+                      if (o.key === "custom" && !custom) setCustom(toLocalInput(followUpAt ?? QUICK_PICKS[1].at()));
+                    }}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${next === o.key ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {next === "custom" && (
+                <input
+                  type="datetime-local"
+                  className="block rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm"
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                />
+              )}
+            </div>
+          )}
           <div className="flex justify-end">
             <Button disabled={busy}>{busy ? "Saving…" : `Add ${MANUAL_KINDS.find((k) => k.key === kind)!.label.toLowerCase()}`}</Button>
           </div>
