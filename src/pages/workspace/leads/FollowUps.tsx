@@ -8,6 +8,7 @@ import { nameOf, useMembers } from "../../../lib/members";
 import { Alert, Badge, Card, Empty, Select, Spinner } from "../../../components/ui";
 import { STAGE_LABEL, STAGE_TONE, type Stage } from "./leadShared";
 import { ago } from "./LeadTimeline";
+import { useContactLog } from "./ContactPrompt";
 import { QUICK_PICKS, followUpState, followUpTone, telLink, waLink, whenLabel } from "./followUp";
 
 type Row = {
@@ -49,6 +50,7 @@ export default function FollowUps() {
   const { session } = useAuth();
   const me = session?.user.id ?? "";
   const people = useMembers(workspace.id);
+  const { logContact } = useContactLog();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("overdue");
@@ -222,8 +224,8 @@ export default function FollowUps() {
                     )}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    {tel && <a href={tel} className="rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-700">Call</a>}
-                    {wa && <a href={wa} target="_blank" rel="noreferrer" className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-700">WhatsApp</a>}
+                    {tel && <a href={tel} onClick={() => logContact(r, "call")} className="rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-700">Call</a>}
+                    {wa && <a href={wa} target="_blank" rel="noreferrer" onClick={() => logContact(r, "whatsapp")} className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-700">WhatsApp</a>}
                     <Link to={leadLink(r.id)} className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
                       Log &amp; open
                     </Link>

@@ -6,7 +6,8 @@ import { date } from "../../../lib/format";
 import { Alert, Button, Field, Input, Modal, Select, Textarea } from "../../../components/ui";
 import { Attachments } from "../../../components/Files";
 import { SOURCES, STAGES, humanize, type FormField, type Stage } from "./leadShared";
-import LeadTimeline, { ago, type ManualKind } from "./LeadTimeline";
+import LeadTimeline, { ago } from "./LeadTimeline";
+import { useContactLog } from "./ContactPrompt";
 import { LOST_REASONS, fromLocalInput, telLink, toLocalInput, waLink } from "./followUp";
 
 export type Lead = Tables<"leads">;
@@ -40,7 +41,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
     first_remark: "",
   });
   const [tab, setTab] = useState<"details" | "timeline">("details");
-  const [preset, setPreset] = useState<{ kind: ManualKind; n: number } | null>(null);
+  const { logContact } = useContactLog();
   // Values the timeline changed (a call can move the lead on, or set the next follow-up).
   const [live, setLive] = useState<Partial<Lead>>({});
   const current = lead ? { ...lead, ...live } : null;
@@ -48,6 +49,16 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
   const wa = waLink(current?.phone);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // A call or the timeline changed the lead (stage, next follow-up).
+  function applyPatch(patch: Partial<Lead>) {
+    setLive((x) => ({ ...x, ...patch }));
+    // Keep the Details form in step so saving it later doesn't undo the change.
+    setV((f) => ({
+      ...f,
+      ...(patch.stage ? { stage: patch.stage as Stage } : {}),
+      ...("follow_up_at" in patch ? { follow_up_at: toLocalInput(patch.follow_up_at) } : {}),
+    }));
+  }
   const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
 
   // Staff can only keep a lead with themselves (or leave it unassigned).
@@ -125,7 +136,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
               href={tel}
               onClick={() => {
                 setTab("timeline");
-                setPreset({ kind: "call", n: Date.now() });
+                logContact(lead, "call", applyPatch);
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-sky-700"
             >
@@ -139,14 +150,14 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
               rel="noreferrer"
               onClick={() => {
                 setTab("timeline");
-                setPreset({ kind: "whatsapp", n: Date.now() });
+                logContact(lead, "whatsapp", applyPatch);
               }}
               className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
             >
               WhatsApp
             </a>
           )}
-          <span className="text-xs text-slate-500">After the call, note how it went and set the next follow-up.</span>
+          <span className="text-xs text-slate-500">Tapping these logs the contact. You'll be asked how it went.</span>
         </div>
       )}
       {lead && (
@@ -171,16 +182,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
             leadId={lead.id}
             stage={current!.stage}
             followUpAt={current!.follow_up_at}
-            preset={preset}
-            onLeadChanged={(patch) => {
-              setLive((x) => ({ ...x, ...patch }));
-              // Keep the Details form in step so saving it later doesn't undo the change.
-              setV((f) => ({
-                ...f,
-                ...(patch.stage ? { stage: patch.stage as Stage } : {}),
-                ...("follow_up_at" in patch ? { follow_up_at: toLocalInput(patch.follow_up_at) } : {}),
-              }));
-            }}
+            onLeadChanged={applyPatch}
             people={people}
             me={me}
             forms={formFields}
