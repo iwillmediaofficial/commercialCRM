@@ -12,6 +12,7 @@ import { Icon } from "../../components/icons";
 import { AppShell, UserMenu, type NavGroup } from "../../components/AppShell";
 import { WorkspaceSearch } from "../../components/Search";
 import { date, daysLeft } from "../../lib/format";
+import { ContactLogProvider } from "./leads/ContactPrompt";
 
 function endOfToday() {
   const d = new Date();
@@ -109,6 +110,7 @@ export default function WorkspaceLayout() {
         ctx.hasModule("leads") && { to: "follow-ups", label: "Follow-ups", icon: "phone", badge: counts.dueFollowUps },
         ctx.hasModule("leads") && admin && { to: "lead-forms", label: "Lead forms", icon: "forms" },
         ctx.hasModule("leads") && admin && { to: "lead-assignment", label: "Lead assignment", icon: "swap" },
+        ctx.hasModule("leads") && admin && { to: "response-times", label: "Response times", icon: "time" },
         { to: "clients", label: "Clients", icon: "clients" },
       ],
     },
@@ -180,6 +182,7 @@ export default function WorkspaceLayout() {
 
   return (
     <WorkspaceContext.Provider value={ctx}>
+      <ContactLogProvider>
       <AppShell
         brand={brand}
         groups={groups}
@@ -196,6 +199,7 @@ export default function WorkspaceLayout() {
         {subscriptionBanner()}
         <Outlet />
       </AppShell>
+      </ContactLogProvider>
     </WorkspaceContext.Provider>
   );
 

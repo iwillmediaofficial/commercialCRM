@@ -97,8 +97,6 @@ type Props = {
   leadId: string;
   stage: string;
   followUpAt: string | null;
-  // Set by the Call / WhatsApp buttons: pick that entry type.
-  preset?: { kind: ManualKind; n: number } | null;
   onLeadChanged?: (patch: LeadPatch) => void;
   people: Person[];
   me: string;
@@ -106,7 +104,7 @@ type Props = {
   onCount?: (n: number) => void;
 };
 
-export default function LeadTimeline({ leadId, stage, followUpAt, preset, onLeadChanged, people, me, forms, onCount }: Props) {
+export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged, people, me, forms, onCount }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const [items, setItems] = useState<Activity[] | null>(null);
   const [error, setError] = useState("");
@@ -120,10 +118,6 @@ export default function LeadTimeline({ leadId, stage, followUpAt, preset, onLead
   const [next, setNext] = useState("keep"); // keep | quick pick key | custom | clear
   const [custom, setCustom] = useState("");
   const closed = stage === "won" || stage === "lost";
-
-  useEffect(() => {
-    if (preset) setKind(preset.kind);
-  }, [preset]);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
