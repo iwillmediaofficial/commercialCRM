@@ -8,6 +8,7 @@ import { Alert, Button, Select, Spinner, Textarea } from "../../../components/ui
 import { STAGE_LABEL, type Stage } from "./leadShared";
 import { QUICK_PICKS, fromLocalInput, toLocalInput, whenLabel } from "./followUp";
 import type { Lead } from "./LeadModal";
+import { describeAnswerChange, parseAnswers, useLeadQuestions, type LeadQuestion } from "./leadQuestions";
 
 export type Activity = Tables<"lead_activities">;
 
@@ -40,6 +41,7 @@ const KIND_STYLE: Record<string, { dot: string; label: string }> = {
   assigned: { dot: "bg-slate-300", label: "" },
   follow_up: { dot: "bg-slate-300", label: "" },
   converted: { dot: "bg-green-600", label: "" },
+  answers: { dot: "bg-violet-400", label: "" },
 };
 
 export function dateTime(iso: string) {
@@ -60,7 +62,7 @@ function str(v: unknown) {
 }
 
 // One line for an automatic entry, e.g. "Moved from New lead to Contacted".
-function describe(a: Activity, people: Person[], forms: Record<string, { title: string }>) {
+function describe(a: Activity, people: Person[], forms: Record<string, { title: string }>, questions: LeadQuestion[]) {
   const d = (a.details && typeof a.details === "object" && !Array.isArray(a.details) ? a.details : {}) as Record<string, unknown>;
   const who = (id: unknown) => nameOf(people, str(id)) || "a former member";
   switch (a.kind) {
@@ -86,6 +88,8 @@ function describe(a: Activity, people: Person[], forms: Record<string, { title: 
     }
     case "converted":
       return "Became a client";
+    case "answers":
+      return describeAnswerChange(parseAnswers(d.from as never), parseAnswers(d.to as never), questions);
     default:
       return a.kind;
   }
@@ -102,10 +106,13 @@ type Props = {
   me: string;
   forms: Record<string, { title: string }>;
   onCount?: (n: number) => void;
+  // Hide the "add an entry" box (the Follow-ups desk has its own).
+  hideForm?: boolean;
 };
 
-export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged, people, me, forms, onCount }: Props) {
+export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged, people, me, forms, onCount, hideForm }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
+  const questions = useLeadQuestions(workspace.id);
   const [items, setItems] = useState<Activity[] | null>(null);
   const [error, setError] = useState("");
   const [kind, setKind] = useState<ManualKind>("remark");
@@ -223,7 +230,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
     <div className="space-y-4">
       {error && <Alert>{error}</Alert>}
 
-      {canWrite && (
+      {canWrite && !hideForm && (
         <form onSubmit={add} className="space-y-2 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-md ring-1 ring-slate-300" role="group" aria-label="Entry type">
@@ -364,7 +371,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
                   </div>
                 ) : (
                   <div className="text-xs text-slate-600">
-                    <span className="text-slate-800">{describe(a, people, forms)}</span>
+                    <span className="text-slate-800">{describe(a, people, forms, questions)}</span>
                     <span className="text-slate-400"> · </span>
                     {a.created_by && <span>{author} · </span>}
                     <span title={dateTime(a.created_at)}>{ago(a.created_at)}</span>
