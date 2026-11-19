@@ -12,6 +12,7 @@ import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
 import type { Json } from "../../../lib/database.types";
 import LeadPanel from "./LeadPanel";
 import FollowUpResults, { wonAt, type StatActivity } from "./FollowUpResults";
+import { lockTimeLabel, useLeadLock } from "./leadLock";
 
 type Row = {
   id: string;
@@ -47,6 +48,11 @@ const TABS: { key: Tab; label: string; hint: string; tone: string }[] = [
   { key: "none", label: "No follow-up set", hint: "Open leads with nothing scheduled.", tone: "bg-slate-200 text-slate-700" },
 ];
 
+// The time now in India, as "HH:MM".
+function istNow() {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+}
+
 function tabOf(r: Row): Tab[] {
   const out: Tab[] = [];
   if (!r.first_contacted_at) out.push("uncontacted");
@@ -78,6 +84,17 @@ export default function FollowUps() {
   const [, tick] = useState(0);
   // Your place in the automatic lead rotation (null = not in it).
   const [away, setAwayState] = useState<boolean | null>(null);
+  // Stuck lock: while stuck, only the overdue list is shown.
+  const { lock, refresh: refreshLock } = useLeadLock(workspace.id);
+  const stuck = !!lock?.stuck;
+  const [wasStuck, setWasStuck] = useState(false);
+  useEffect(() => {
+    if (!stuck) return;
+    setWasStuck(true);
+    setView("desk");
+    setTab("overdue");
+    setQ("");
+  }, [stuck]);
 
   useEffect(() => {
     if (!me) return;
@@ -185,7 +202,9 @@ export default function FollowUps() {
   // Keep a lead open on wide screens: the first one in the list.
   useEffect(() => {
     if (!rows) return;
-    if (selected && (list.some((r) => r.id === selected) || mobileOpen)) return;
+    // A lead that just moved to another list (for example after a call) stays open
+    // until it's saved; switching lists picks the first lead of the new list.
+    if (selected && (list.some((r) => r.id === selected) || mobileOpen || (!q && rows.some((r) => r.id === selected)))) return;
     setSelected(list[0]?.id ?? null);
   }, [list, rows, selected, mobileOpen]);
 
@@ -215,6 +234,7 @@ export default function FollowUps() {
     }
     load();
     loadActivities();
+    refreshLock();
   }
 
   if (!hasModule("leads")) {
@@ -241,6 +261,7 @@ export default function FollowUps() {
             {!isAdmin && " · your leads"}
           </p>
         </div>
+        {!stuck && (
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg bg-white p-0.5 ring-1 ring-slate-200" role="group" aria-label="View">
             {(["desk", "results"] as const).map((v) => (
@@ -278,10 +299,30 @@ export default function FollowUps() {
             </Select>
           )}
         </div>
+        )}
       </div>
 
       {error && <Alert>{error}</Alert>}
 
+      {stuck && lock ? (
+        <div role="alert" className="rounded-xl bg-red-600 px-5 py-4 text-white shadow-sm">
+          <div className="text-base font-semibold">
+            Leads locked: {lock.overdue} overdue lead{lock.overdue === 1 ? "" : "s"} to clear
+          </div>
+          <p className="mt-1 text-sm text-red-50">
+            After {lockTimeLabel(lock.lock_time)} you can only work on your overdue leads. For each one, Call or WhatsApp first and then set the next follow-up, or mark it Won or Lost.
+            Everything else opens again as soon as the last one is done.
+          </p>
+        </div>
+      ) : wasStuck ? (
+        <Alert tone="success">All overdue leads are cleared. You have full access again.</Alert>
+      ) : lock?.enabled && !isAdmin && !lock.unlocked_today && lock.overdue > 0 && istNow() < lock.lock_time ? (
+        <Alert tone="warning">
+          Leads lock at {lockTimeLabel(lock.lock_time)}. You have {lock.overdue} overdue lead{lock.overdue === 1 ? "" : "s"}. Contact {lock.overdue === 1 ? "it" : "them"} before then to keep full access.
+        </Alert>
+      ) : null}
+
+      {!stuck && (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { key: "overdue" as const, label: "Overdue", value: groups.overdue.length, hint: "Follow-up time has passed", tone: groups.overdue.length ? "text-red-600" : "text-slate-900" },
@@ -306,6 +347,7 @@ export default function FollowUps() {
                 setView("desk");
                 setTab(t.key);
                 setQ("");
+                setSelected(null);
                 setMobileOpen(false);
               }}
               className={`rounded-xl bg-white p-4 text-left shadow-sm ring-1 transition hover:ring-slate-300 ${active ? "ring-2 ring-indigo-500" : "ring-slate-200"}`}
@@ -317,6 +359,7 @@ export default function FollowUps() {
           );
         })}
       </div>
+      )}
 
       {view === "results" ? (
         <FollowUpResults
@@ -331,6 +374,7 @@ export default function FollowUps() {
       ) : (
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className={`min-w-0 rounded-xl bg-white shadow-sm ring-1 ring-slate-200 lg:sticky lg:top-4 ${mobileOpen ? "hidden lg:block" : ""}`}>
+          {!stuck && (
           <div className="flex flex-wrap gap-1 border-b border-slate-100 p-2" role="tablist">
             {TABS.map((t) => (
               <button
@@ -340,6 +384,7 @@ export default function FollowUps() {
                 onClick={() => {
                   setTab(t.key);
                   setQ("");
+                  setSelected(null);
                 }}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${!q && tab === t.key ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"}`}
               >
@@ -348,8 +393,9 @@ export default function FollowUps() {
               </button>
             ))}
           </div>
+          )}
           <div className="space-y-2 p-2">
-            <Input type="search" placeholder="Search name or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search open leads" />
+            {stuck ? <p className="px-1 pt-1 text-sm font-semibold text-red-700">Your overdue leads</p> : <Input type="search" placeholder="Search name or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search open leads" />}
             <p className="px-1 text-xs text-slate-500">{q ? `${list.length} open lead${list.length === 1 ? "" : "s"} found` : info.hint}</p>
           </div>
           <div className="max-h-[70vh] space-y-1.5 overflow-y-auto px-2 pb-2">

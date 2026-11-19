@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
@@ -13,6 +13,7 @@ import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
 import { LostReasonModal, followUpTone, whenLabel } from "./followUp";
 import { ago } from "./LeadTimeline";
+import { lockTimeLabel, useLeadLock } from "./leadLock";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
 type View = "board" | "table";
@@ -23,7 +24,26 @@ function byPosition(a: Lead, b: Lead) {
 
 const isOpen = (l: Lead) => l.stage !== "won" && l.stage !== "lost";
 
+// While the Stuck lock is on, staff see a pointer to their overdue leads instead.
 export default function Leads() {
+  const { workspace, hasModule } = useWorkspace();
+  const { lock } = useLeadLock(workspace.id);
+  if (hasModule("leads") && lock?.stuck) {
+    return (
+      <Card title="Leads are locked for now">
+        <p className="text-sm text-slate-600">
+          It's past {lockTimeLabel(lock.lock_time)} and you have {lock.overdue} overdue lead{lock.overdue === 1 ? "" : "s"}. Contact each one and set its next follow-up, or mark it Won or Lost, and your leads open again.
+        </p>
+        <Link to={`/w/${workspace.slug}/follow-ups`} className="mt-4 inline-flex rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+          Open my overdue leads
+        </Link>
+      </Card>
+    );
+  }
+  return <LeadsPage />;
+}
+
+function LeadsPage() {
   const { workspace, canWrite, isAdmin, hasModule } = useWorkspace();
   const { session } = useAuth();
   const me = session?.user.id ?? "";
