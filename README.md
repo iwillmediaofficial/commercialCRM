@@ -60,6 +60,28 @@ To restore a backup: download it from R2, then
 `gpg -d db-YYYY-MM-DD.dump.gpg > db.dump` and
 `pg_restore --no-owner --no-privileges -d "<connection string>" db.dump` into a fresh project.
 
+## WhatsApp Inbox
+
+Customers message a company's WhatsApp Business number; the messages land in that
+company's **WhatsApp** page, matched to a lead (or a new lead with source
+"WhatsApp", handed out by round-robin). Staff reply from the CRM.
+
+1. Run `supabase/migrations/20261119140000_whatsapp_inbox.sql` in the SQL Editor.
+2. Deploy the Edge Functions `whatsapp-webhook` (verify JWT **off**; it checks Meta's
+   signature) and `whatsapp-send` (verify JWT on).
+3. Add Edge Function secrets: `WHATSAPP_VERIFY_TOKEN` (any long random text),
+   `WHATSAPP_APP_SECRET` (Meta app → App settings → Basic) and `WHATSAPP_ACCESS_TOKEN`
+   (permanent System User token with whatsapp_business_messaging and
+   whatsapp_business_management).
+4. In the Meta app, WhatsApp → Configuration → Webhook: callback URL
+   `https://<project>.supabase.co/functions/v1/whatsapp-webhook`, the same verify
+   token, then subscribe to the **messages** field.
+5. Super Admin → Companies → open the company → WhatsApp: turn it on and link the
+   number's Phone number ID.
+
+Replies are allowed only within 24 hours of the customer's last message
+(WhatsApp's rule). Photos and files show as a label for now.
+
 ## Launch checklist
 
 - Supabase > Authentication > Leaked password protection: turn on.

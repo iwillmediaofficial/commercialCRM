@@ -1561,6 +1561,102 @@ export type Database = {
           },
         ]
       }
+      wa_chats: {
+        Row: {
+          contact_name: string | null
+          created_at: string
+          handler: string
+          id: string
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          lead_id: string | null
+          number_id: string
+          status: string
+          unread_count: number
+          wa_id: string
+          workspace_id: string
+        }
+        Insert: {
+          contact_name?: string | null
+          created_at?: string
+          handler?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          number_id: string
+          status?: string
+          unread_count?: number
+          wa_id: string
+          workspace_id: string
+        }
+        Update: {
+          contact_name?: string | null
+          created_at?: string
+          handler?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          number_id?: string
+          status?: string
+          unread_count?: number
+          wa_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      wa_messages: {
+        Row: {
+          body: string | null
+          chat_id: string
+          created_at: string
+          direction: string
+          error: string | null
+          id: string
+          media: Json | null
+          sender: string
+          sent_by: string | null
+          status: string
+          type: string
+          wa_message_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          body?: string | null
+          chat_id: string
+          created_at?: string
+          direction: string
+          error?: string | null
+          id?: string
+          media?: Json | null
+          sender: string
+          sent_by?: string | null
+          status?: string
+          type?: string
+          wa_message_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          body?: string | null
+          chat_id?: string
+          created_at?: string
+          direction?: string
+          error?: string | null
+          id?: string
+          media?: Json | null
+          sender?: string
+          sent_by?: string | null
+          status?: string
+          type?: string
+          wa_message_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       work_item_assignees: {
         Row: {
           assigned_at: string
@@ -1677,6 +1773,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_numbers: {
+        Row: {
+          created_at: string
+          display_phone: string | null
+          id: string
+          is_active: boolean
+          label: string | null
+          phone_number_id: string
+          waba_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_phone?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          phone_number_id: string
+          waba_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          display_phone?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          phone_number_id?: string
+          waba_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
       }
       workspace_members: {
         Row: {
@@ -1847,6 +1976,7 @@ export type Database = {
             | null
           updated_at: string
           valid_until: string
+          whatsapp_enabled: boolean
         }
         Insert: {
           attachments_enabled?: boolean
@@ -1868,6 +1998,7 @@ export type Database = {
             | null
           updated_at?: string
           valid_until: string
+          whatsapp_enabled?: boolean
         }
         Update: {
           attachments_enabled?: boolean
@@ -1889,6 +2020,7 @@ export type Database = {
             | null
           updated_at?: string
           valid_until?: string
+          whatsapp_enabled?: boolean
         }
         Relationships: [
           {
@@ -2222,6 +2354,18 @@ export type Database = {
           p_slug: string
         }
         Returns: Json
+      }
+      wa_mark_read: {
+        Args: { p_chat_id: string }
+        Returns: undefined
+      }
+      wa_prepare_send: {
+        Args: { p_body: string; p_chat_id: string }
+        Returns: Json
+      }
+      wa_set_chat_status: {
+        Args: { p_chat_id: string; p_status: string }
+        Returns: undefined
       }
       workspace_has_module: {
         Args: { module: string; ws: string }

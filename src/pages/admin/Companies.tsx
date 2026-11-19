@@ -170,6 +170,7 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
               <Details w={w} onChanged={onChanged} />
               <OwnerPin w={w} />
               <FileAttachments w={w} onChanged={onChanged} />
+              <WhatsAppSetup w={w} onChanged={onChanged} />
             </div>
           </td>
         </tr>
@@ -394,6 +395,92 @@ function FileAttachments({ w, onChanged }: { w: Row; onChanged: () => void }) {
         </Button>
       </div>
       <p className="mt-2 text-xs text-slate-500">Lets this company upload files to tasks, clients, leads and invoices. Uses your R2 storage.</p>
+      {error && <div className="mt-3"><Alert>{error}</Alert></div>}
+    </Panel>
+  );
+}
+
+// WhatsApp add-on: switch it on and link the company's WhatsApp Business number.
+// For now numbers are linked by hand with Meta's "Phone number ID"; the
+// "Connect WhatsApp" button for companies comes once Meta approves the app.
+function WhatsAppSetup({ w, onChanged }: { w: Row; onChanged: () => void }) {
+  const [numbers, setNumbers] = useState<Tables<"whatsapp_numbers">[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ phone_number_id: "", display_phone: "", label: "" });
+  const on = w.whatsapp_enabled;
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("whatsapp_numbers").select("*").eq("workspace_id", w.id).order("created_at");
+    setNumbers(data ?? []);
+  }, [w.id]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function toggle() {
+    setBusy(true);
+    setError("");
+    const { error } = await supabase.from("workspaces").update({ whatsapp_enabled: !on }).eq("id", w.id);
+    setBusy(false);
+    if (error) return setError(error.message);
+    onChanged();
+  }
+
+  async function add(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    const id = form.phone_number_id.replace(/\D/g, "");
+    if (id.length < 5) return setError("Enter the Phone number ID from Meta (digits only, not the phone number).");
+    setBusy(true);
+    const { error } = await supabase.from("whatsapp_numbers").insert({
+      workspace_id: w.id,
+      phone_number_id: id,
+      display_phone: form.display_phone.trim() || null,
+      label: form.label.trim() || null,
+    });
+    setBusy(false);
+    if (error) return setError(error.code === "23505" ? "That Phone number ID is already linked to a company." : error.message);
+    setForm({ phone_number_id: "", display_phone: "", label: "" });
+    load();
+  }
+
+  async function setActive(n: Tables<"whatsapp_numbers">, active: boolean) {
+    setError("");
+    const { error } = await supabase.from("whatsapp_numbers").update({ is_active: active }).eq("id", n.id);
+    if (error) return setError(error.message);
+    load();
+  }
+
+  return (
+    <Panel title="WhatsApp">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm">
+          WhatsApp Inbox: <span className={on ? "font-semibold text-green-700" : "font-semibold text-slate-600"}>{on ? "On" : "Off"}</span>
+        </span>
+        <Button variant="secondary" disabled={busy} onClick={toggle}>{on ? "Turn off" : "Turn on"}</Button>
+      </div>
+      <ul className="mt-3 space-y-1.5 text-sm">
+        {numbers.length === 0 && <li className="text-slate-500">No number linked yet.</li>}
+        {numbers.map((n) => (
+          <li key={n.id} className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              {n.display_phone || "Number"} <span className="text-xs text-slate-500">ID {n.phone_number_id}{n.label ? ` · ${n.label}` : ""}</span>
+              {!n.is_active && <span className="ml-1 text-xs font-semibold text-slate-500">(unlinked)</span>}
+            </span>
+            <button className="text-xs font-medium text-brand-600 hover:underline" onClick={() => setActive(n, !n.is_active)}>
+              {n.is_active ? "Unlink" : "Link again"}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={add} className="mt-3 grid gap-2 sm:grid-cols-3">
+        <Input placeholder="Phone number ID" inputMode="numeric" value={form.phone_number_id} onChange={(e) => setForm({ ...form, phone_number_id: e.target.value })} />
+        <Input placeholder="Phone, e.g. +91 98765 43210" value={form.display_phone} onChange={(e) => setForm({ ...form, display_phone: e.target.value })} />
+        <Input placeholder="Label (optional)" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+        <div className="sm:col-span-3"><Button variant="secondary" disabled={busy}>Link number</Button></div>
+      </form>
+      <p className="mt-2 text-xs text-slate-500">Phone number ID is on Meta's WhatsApp → API Setup page. Messages to that number then appear in this company's WhatsApp Inbox.</p>
       {error && <div className="mt-3"><Alert>{error}</Alert></div>}
     </Panel>
   );
