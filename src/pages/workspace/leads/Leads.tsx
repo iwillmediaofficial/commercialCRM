@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
@@ -13,6 +13,7 @@ import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
 import { LostReasonModal, followUpTone, whenLabel } from "./followUp";
 import { ago } from "./LeadTimeline";
+import { lockTimeLabel, useLeadLock } from "./leadLock";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
 type View = "board" | "table";
@@ -23,7 +24,26 @@ function byPosition(a: Lead, b: Lead) {
 
 const isOpen = (l: Lead) => l.stage !== "won" && l.stage !== "lost";
 
+// While the Stuck lock is on, staff see a pointer to their overdue leads instead.
 export default function Leads() {
+  const { workspace, hasModule } = useWorkspace();
+  const { lock } = useLeadLock(workspace.id);
+  if (hasModule("leads") && lock?.stuck) {
+    return (
+      <Card title="Leads are locked for now">
+        <p className="text-sm text-slate-600">
+          It's past {lockTimeLabel(lock.lock_time)} and you have {lock.overdue} overdue lead{lock.overdue === 1 ? "" : "s"}. Contact each one and set its next follow-up, or mark it Won or Lost, and your leads open again.
+        </p>
+        <Link to={`/w/${workspace.slug}/follow-ups`} className="mt-4 inline-flex rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">
+          Open my overdue leads
+        </Link>
+      </Card>
+    );
+  }
+  return <LeadsPage />;
+}
+
+function LeadsPage() {
   const { workspace, canWrite, isAdmin, hasModule } = useWorkspace();
   const { session } = useAuth();
   const me = session?.user.id ?? "";
@@ -385,14 +405,16 @@ export default function Leads() {
         <Card>
           {filtered.length ? (
             <div className="-mx-5 overflow-x-auto">
-              <table className="w-full min-w-[980px] text-sm">
+              <table className="w-full min-w-[1100px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-5 py-2 font-medium">Lead</th>
                     <th className="px-2 py-2 font-medium">Contact</th>
                     <th className="px-2 py-2 font-medium">Source</th>
                     <th className="px-2 py-2 font-medium">Stage</th>
-                    <th className="px-2 py-2 font-medium">Quick check</th>
+                    {questions.map((x) => (
+                      <th key={x.key} className="max-w-[110px] px-2 py-2 font-medium leading-tight">{x.label}</th>
+                    ))}
                     <th className="px-2 py-2 text-right font-medium">Value</th>
                     <th className="px-2 py-2 font-medium">Assigned</th>
                     <th className="px-2 py-2 font-medium">Last remark</th>
@@ -425,16 +447,18 @@ export default function Leads() {
                           <Badge tone={STAGE_TONE[l.stage as Stage]}>{STAGE_LABEL[l.stage as Stage]}</Badge>
                         )}
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex max-w-[200px] flex-wrap gap-1">
-                          {questions.map((x) => {
-                            const a = parseAnswers(l.answers)[x.key];
-                            return a ? (
-                              <span key={x.key} title={`${x.label} ${a}`} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(a).chip}`}>{a}</span>
-                            ) : null;
-                          })}
-                        </div>
-                      </td>
+                      {questions.map((x) => {
+                        const a = parseAnswers(l.answers)[x.key];
+                        return (
+                          <td key={x.key} className="px-2 py-2">
+                            {a ? (
+                              <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(a).chip}`}>{a}</span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className="px-2 py-2 text-right">{l.value != null ? inr(l.value) : ""}</td>
                       <td className="px-2 py-2">{nameOf(people, l.assigned_to)}</td>
                       <td className="max-w-[220px] px-2 py-2 text-xs text-slate-600">

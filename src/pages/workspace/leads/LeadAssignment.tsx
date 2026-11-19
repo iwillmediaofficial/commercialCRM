@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { useMembers, type Person } from "../../../lib/members";
-import { Alert, Button, Card, Select, Spinner } from "../../../components/ui";
+import { Alert, Button, Card, Input, Select, Spinner } from "../../../components/ui";
 import { ago } from "./LeadTimeline";
 
 type Member = Tables<"lead_assignment_members">;
@@ -13,6 +13,16 @@ const PASS_ON: [string, string][] = [
   ["15", "15 minutes"],
   ["30", "30 minutes"],
   ["60", "1 hour"],
+  ["120", "2 hours"],
+  ["240", "4 hours"],
+];
+
+const FIRST_CONTACT: [string, string][] = [
+  ["", "Off"],
+  ["15", "15 minutes"],
+  ["30", "30 minutes"],
+  ["60", "1 hour"],
+  ["90", "1.5 hours"],
   ["120", "2 hours"],
   ["240", "4 hours"],
 ];
@@ -172,6 +182,8 @@ export default function LeadAssignment() {
         </fieldset>
       </Card>
 
+      <DeadlineSettings workspaceId={workspace.id} readOnly={readOnly} passOn={settings.pass_on_minutes} autoAssign={settings.auto_assign_enabled} />
+
       <Card title="Who's in the rotation">
         <p className="mb-3 text-sm text-slate-500">
           Tick the people who should get new leads. Mark someone away when they're on leave; they're skipped and rejoin in turn when back. Staff can also switch themselves away on the Follow-ups page.
@@ -254,5 +266,97 @@ export default function LeadAssignment() {
         </Card>
       )}
     </>
+  );
+}
+
+// First-contact deadline and the Stuck lock.
+function DeadlineSettings({ workspaceId, readOnly, passOn, autoAssign }: { workspaceId: string; readOnly: boolean; passOn: number | null; autoAssign: boolean }) {
+  const [saved, setSaved] = useState<{ minutes: string; lock: boolean; time: string } | null>(null);
+  const [draft, setDraft] = useState({ minutes: "60", lock: false, time: "12:00" });
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("workspace_settings")
+      .select("first_contact_minutes, stuck_lock_enabled, stuck_lock_time")
+      .eq("workspace_id", workspaceId)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) return setError(error.message);
+        if (!data) return;
+        const v = { minutes: data.first_contact_minutes ? String(data.first_contact_minutes) : "", lock: data.stuck_lock_enabled, time: (data.stuck_lock_time ?? "12:00").slice(0, 5) };
+        setSaved(v);
+        setDraft(v);
+      });
+  }, [workspaceId]);
+
+  async function save() {
+    setError("");
+    setOk(false);
+    if (draft.lock && !/^\d{2}:\d{2}$/.test(draft.time)) return setError("Pick a lock time.");
+    setBusy(true);
+    const { error } = await supabase
+      .from("workspace_settings")
+      .update({ first_contact_minutes: draft.minutes ? Number(draft.minutes) : null, stuck_lock_enabled: draft.lock, stuck_lock_time: draft.time })
+      .eq("workspace_id", workspaceId);
+    setBusy(false);
+    if (error) return setError(error.message);
+    setSaved(draft);
+    setOk(true);
+  }
+
+  if (!saved) return error ? <Alert>{error}</Alert> : null;
+  const dirty = draft.minutes !== saved.minutes || draft.lock !== saved.lock || draft.time !== saved.time;
+  const clash = autoAssign && passOn && draft.minutes && passOn <= Number(draft.minutes);
+  const hint = FIRST_CONTACT.find(([v]) => v === draft.minutes)?.[1];
+
+  return (
+    <Card title="First call deadline and Stuck lock">
+      {error && <div className="mb-3"><Alert>{error}</Alert></div>}
+      {ok && <div className="mb-3"><Alert tone="success">Saved.</Alert></div>}
+      <fieldset disabled={readOnly || busy} className="space-y-5">
+        <div className="max-w-md">
+          <span className="mb-1 block text-sm font-medium text-slate-700">A new lead turns Overdue if it isn't contacted within</span>
+          <Select value={draft.minutes} onChange={(e) => setDraft({ ...draft, minutes: e.target.value })}>
+            {FIRST_CONTACT.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </Select>
+          <span className="mt-1 block text-xs text-slate-500">
+            {draft.minutes
+              ? `When a lead is given to someone, its follow-up is set ${hint} later. The first call, WhatsApp or meeting clears it. A reassigned lead gets a fresh ${hint}. Follow-ups set by hand are never changed. The clock only runs from 9 AM to 8 PM.`
+              : "New leads only turn Overdue when someone sets a follow-up on them."}
+          </span>
+          {clash && (
+            <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Leads are passed on after {PASS_ON.find(([v]) => v === String(passOn))?.[1] ?? `${passOn} minutes`}, which is no later than this deadline, so most leads will move to the next person before they ever turn Overdue.
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-3 border-t border-slate-100 pt-4">
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5" checked={draft.lock} onChange={(e) => setDraft({ ...draft, lock: e.target.checked })} />
+            <span>
+              <span className="font-medium text-slate-700">Stuck lock: staff with overdue leads see only those leads</span>
+              <span className="block text-xs text-slate-500">
+                After the lock time, a staff member with any overdue lead can only open their overdue leads until each one is contacted and given a new follow-up, or marked Won or Lost. Owners and admins are never locked.
+                Staff get a reminder 30 minutes before. Stuck staff still get new leads, but can't call or message them until the overdue ones are cleared. You can unlock someone for the day from Follow-ups, Results.
+              </span>
+            </span>
+          </label>
+          <div className="max-w-[12rem] pl-6">
+            <span className="mb-1 block text-sm font-medium text-slate-700">Lock time (India time)</span>
+            <Input type="time" value={draft.time} disabled={!draft.lock} onChange={(e) => setDraft({ ...draft, time: e.target.value })} />
+          </div>
+        </div>
+
+        {!readOnly && (
+          <div className="flex justify-end">
+            <Button type="button" onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save"}</Button>
+          </div>
+        )}
+      </fieldset>
+    </Card>
   );
 }

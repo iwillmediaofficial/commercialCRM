@@ -780,6 +780,33 @@ export type Database = {
           },
         ]
       }
+      lead_lock_overrides: {
+        Row: {
+          created_at: string
+          day: string
+          id: string
+          unlocked_by: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          day: string
+          id?: string
+          unlocked_by?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          day?: string
+          id?: string
+          unlocked_by?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       lead_assignment_members: {
         Row: {
           created_at: string
@@ -900,6 +927,7 @@ export type Database = {
           first_contacted_at: string | null
           follow_up_at: string | null
           follow_up_notified_at: string | null
+          follow_up_auto: boolean
           last_contacted_at: string | null
           lost_reason: string | null
           name: string
@@ -935,6 +963,7 @@ export type Database = {
           first_contacted_at?: string | null
           follow_up_at?: string | null
           follow_up_notified_at?: string | null
+          follow_up_auto?: boolean
           last_contacted_at?: string | null
           lost_reason?: string | null
           name: string
@@ -970,6 +999,7 @@ export type Database = {
           first_contacted_at?: string | null
           follow_up_at?: string | null
           follow_up_notified_at?: string | null
+          follow_up_auto?: boolean
           last_contacted_at?: string | null
           lost_reason?: string | null
           name?: string
@@ -1711,6 +1741,9 @@ export type Database = {
           auto_assign_enabled: boolean
           auto_assign_manual: boolean
           pass_on_minutes: number | null
+          first_contact_minutes: number | null
+          stuck_lock_enabled: boolean
+          stuck_lock_time: string
         }
         Insert: {
           lead_questions?: Json
@@ -1742,6 +1775,9 @@ export type Database = {
           auto_assign_enabled?: boolean
           auto_assign_manual?: boolean
           pass_on_minutes?: number | null
+          first_contact_minutes?: number | null
+          stuck_lock_enabled?: boolean
+          stuck_lock_time?: string
         }
         Update: {
           lead_questions?: Json
@@ -1773,6 +1809,9 @@ export type Database = {
           auto_assign_enabled?: boolean
           auto_assign_manual?: boolean
           pass_on_minutes?: number | null
+          first_contact_minutes?: number | null
+          stuck_lock_enabled?: boolean
+          stuck_lock_time?: string
         }
         Relationships: [
           {
@@ -2090,6 +2129,20 @@ export type Database = {
       member_role: {
         Args: { ws: string }
         Returns: Database["public"]["Enums"]["member_role"]
+      }
+      my_lead_lock: { Args: { p_workspace_id: string }; Returns: Json }
+      team_lead_lock: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          overdue: number
+          stuck: boolean
+          unlocked_today: boolean
+          user_id: string
+        }[]
+      }
+      unlock_lead_lock: {
+        Args: { p_user_id: string; p_workspace_id: string }
+        Returns: undefined
       }
       my_inactive_companies: {
         Args: never
