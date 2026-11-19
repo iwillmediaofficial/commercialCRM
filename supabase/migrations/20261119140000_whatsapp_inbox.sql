@@ -86,6 +86,7 @@ as $$
                       where l.id = p_lead and l.workspace_id = p_ws
                         and (l.assigned_to = (select auth.uid()) or l.created_by = (select auth.uid()))));
 $$;
+revoke execute on function public.can_see_wa_chat(uuid, uuid) from public, anon;
 grant execute on function public.can_see_wa_chat(uuid, uuid) to authenticated;
 
 create policy whatsapp_numbers_read on public.whatsapp_numbers for select to authenticated
