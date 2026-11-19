@@ -30,9 +30,12 @@ const stageTo = (a: StatActivity) => {
   return d && typeof d.to === "string" ? d.to : null;
 };
 
-export function wonAt(leadId: string, activities: StatActivity[]) {
-  const hit = activities.filter((a) => a.lead_id === leadId && a.kind === "stage" && stageTo(a) === "won");
-  return hit.length ? hit[hit.length - 1].created_at : null;
+// When a Won lead was won: its last move to Won, or (for leads won before the
+// timeline existed, or added as Won) the day it was added.
+export function wonAt(lead: { id: string; stage: string; created_at: string }, activities: StatActivity[]) {
+  if (lead.stage !== "won") return null;
+  const hit = activities.filter((a) => a.lead_id === lead.id && a.kind === "stage" && stageTo(a) === "won");
+  return hit.length ? hit[hit.length - 1].created_at : lead.created_at;
 }
 
 type Props = {
@@ -82,8 +85,8 @@ export default function FollowUpResults({ leads, activities, since, rangeLabel, 
         followUps: activities.filter((a) => a.created_by === p.user_id && ["call", "whatsapp", "meeting"].includes(a.kind) && new Date(a.created_at).getTime() >= since).length,
         overdue: mine.filter((l) => l.stage !== "won" && l.stage !== "lost" && l.follow_up_at && new Date(l.follow_up_at).getTime() < now).length,
         won: mine.filter((l) => {
-          const w = wonAt(l.id, activities);
-          return l.stage === "won" && w && new Date(w).getTime() >= since;
+          const w = wonAt(l, activities);
+          return !!w && new Date(w).getTime() >= since;
         }).length,
       };
     })

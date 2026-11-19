@@ -150,8 +150,7 @@ export default function FollowUps() {
     let now = 0;
     let before = 0;
     for (const r of mineAll) {
-      if (r.stage !== "won") continue;
-      const w = wonAt(r.id, activities);
+      const w = wonAt(r, activities);
       if (!w) continue;
       const t = new Date(w).getTime();
       if (t >= since) now++;
