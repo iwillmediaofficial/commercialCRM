@@ -341,7 +341,7 @@ function DeadlineSettings({ workspaceId, readOnly, passOn, autoAssign }: { works
               <span className="font-medium text-slate-700">Stuck lock: staff with overdue leads see only those leads</span>
               <span className="block text-xs text-slate-500">
                 After the lock time, a staff member with any overdue lead can only open their overdue leads until each one is contacted and given a new follow-up, or marked Won or Lost. Owners and admins are never locked.
-                Staff get a reminder 30 minutes before, and stuck staff are skipped when new leads are shared out. You can unlock someone for the day from Follow-ups, Results.
+                Staff get a reminder 30 minutes before. Stuck staff still get new leads, but can't call or message them until the overdue ones are cleared. You can unlock someone for the day from Follow-ups, Results.
               </span>
             </span>
           </label>

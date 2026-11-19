@@ -189,6 +189,9 @@ export default function FollowUps() {
 
 
 
+  // While stuck: the leads that wait until the overdue ones are cleared.
+  const waiting = useMemo(() => (stuck ? mine.filter((r) => followUpState(r.follow_up_at) !== "overdue") : []), [stuck, mine]);
+
   // The list shown on the left: the tab, or search across all open leads.
   const list = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -311,7 +314,7 @@ export default function FollowUps() {
           </div>
           <p className="mt-1 text-sm text-red-50">
             After {lockTimeLabel(lock.lock_time)} you can only work on your overdue leads. For each one, Call or WhatsApp first and then set the next follow-up, or mark it Won or Lost.
-            Everything else opens again as soon as the last one is done.
+            New leads still come to you, but you can't contact them until the last overdue one is done.
           </p>
         </div>
       ) : wasStuck ? (
@@ -440,6 +443,21 @@ export default function FollowUps() {
               })
             ) : (
               <Empty>{q ? "No open leads match." : tab === "overdue" ? "Nothing overdue. Nice work." : "Nothing here."}</Empty>
+            )}
+            {stuck && waiting.length > 0 && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <p className="px-1 text-xs font-semibold text-slate-500">
+                  {waiting.length} more lead{waiting.length === 1 ? "" : "s"} waiting. They open once your overdue leads are cleared.
+                </p>
+                <ul className="mt-1.5 space-y-1">
+                  {waiting.slice(0, 20).map((r) => (
+                    <li key={r.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-400" aria-disabled="true">
+                      <span className="truncate">{r.name}</span>
+                      <span className="shrink-0 text-xs">{!r.first_contacted_at ? "New" : "Locked"}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>
