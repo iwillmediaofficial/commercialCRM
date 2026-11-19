@@ -5,6 +5,7 @@ export type Person = {
   user_id: string;
   role: MemberRole;
   is_active: boolean;
+  can_add_own_work: boolean;
   full_name: string;
   email: string;
   phone: string | null;
@@ -17,7 +18,7 @@ export function useMembers(workspaceId: string) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { data: m } = await supabase.from("workspace_members").select("user_id, role, is_active").eq("workspace_id", workspaceId);
+      const { data: m } = await supabase.from("workspace_members").select("user_id, role, is_active, can_add_own_work").eq("workspace_id", workspaceId);
       const ids = (m ?? []).map((x) => x.user_id);
       const { data: p } = ids.length
         ? await supabase.from("profiles").select("id, full_name, email, phone, designation").in("id", ids)

@@ -18,19 +18,23 @@ type Props = {
   clients: ClientOpt[];
   people: Person[];
   me: string | undefined;
+  canSelfAdd: boolean; // staff allowed to add their own work items
   onClose: () => void;
   onSaved: () => void;
 };
 
-export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me, onClose, onSaved }: Props) {
+export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me, canSelfAdd, onClose, onSaved }: Props) {
   const { workspace, isAdmin, canWrite, role } = useWorkspace();
   // Set once a new item's row is inserted, so a retry after a later failure updates it instead of inserting again.
   const [createdId, setCreatedId] = useState<string | null>(null);
   const isNew = !item;
   const fullEdit = canWrite && isAdmin; // admins edit everything
+  // Staff with "Can add own work" edit the details of items they create (not billing or assignees).
+  const ownEdit = canWrite && !isAdmin && canSelfAdd && (isNew || (!!me && item.created_by === me));
+  const detailEdit = fullEdit || ownEdit;
   const assignedToMe = !!me && assignees.includes(me);
-  const staffEdit = canWrite && !isAdmin && assignedToMe; // status + checklist only
-  const canEdit = fullEdit || staffEdit;
+  const staffEdit = canWrite && !isAdmin && !ownEdit && assignedToMe; // status + checklist only
+  const canEdit = detailEdit || staffEdit;
 
   const [f, setF] = useState({
     title: item?.title ?? "",
@@ -55,12 +59,12 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
 
   async function save() {
     setError("");
-    if (fullEdit && !f.title.trim()) return setError("Please give the work item a title.");
+    if (detailEdit && !f.title.trim()) return setError("Please give the work item a title.");
     setBusy(true);
     const checklistJson = checklist as unknown as WorkItem["checklist"];
     let id = item?.id ?? createdId ?? undefined;
     const inserting = isNew && !createdId;
-    if (fullEdit) {
+    if (detailEdit) {
       const row = {
         title: f.title.trim(),
         description: f.description.trim() || null,
@@ -70,9 +74,14 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
         start_date: f.start_date || null,
         due_date: f.due_date || null,
         estimated_hours: f.estimated_hours === "" ? null : Number(f.estimated_hours),
-        is_billable: f.is_billable,
-        billable_amount: f.is_billable && f.billable_amount !== "" ? Number(f.billable_amount) : null,
         checklist: checklistJson,
+        // Billing is admin-only; leave it out of staff saves so the database never sees a change.
+        ...(fullEdit
+          ? {
+              is_billable: f.is_billable,
+              billable_amount: f.is_billable && f.billable_amount !== "" ? Number(f.billable_amount) : null,
+            }
+          : {}),
       };
       if (inserting) {
         const { data, error } = await supabase
@@ -86,6 +95,22 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
       } else {
         const { error } = await supabase.from("work_items").update(row).eq("workspace_id", workspace.id).eq("id", id!);
         if (error) return fail(error.message);
+      }
+      // Staff adding their own work: the item is assigned to them, and only to them.
+      if (ownEdit) {
+        if (isNew && me) {
+          const { error } = await supabase
+            .from("work_item_assignees")
+            .upsert(
+              { work_item_id: id!, user_id: me, workspace_id: workspace.id, assigned_by: me },
+              { onConflict: "work_item_id,user_id", ignoreDuplicates: true },
+            );
+          if (error) return fail(error.message);
+        }
+        setBusy(false);
+        onSaved();
+        onClose();
+        return;
       }
       // Sync assignees.
       const add = who.filter((u) => !assignees.includes(u) || isNew);
@@ -161,13 +186,15 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
   const activePeople = people.filter((p) => p.is_active || who.includes(p.user_id));
 
   return (
-    <Drawer title={isNew ? "New work item" : fullEdit ? "Edit work item" : item.title} onClose={onClose}>
+    <Drawer title={isNew ? "New work item" : detailEdit ? "Edit work item" : item.title} onClose={onClose}>
       <div className="space-y-4">
         {error && <Alert>{error}</Alert>}
         {info && <Alert tone="success">{info}</Alert>}
         {staffEdit && <Alert tone="info">You can change the status and checklist of this item. Other details are set by an admin.</Alert>}
 
-        {fullEdit ? (
+        {ownEdit && <Alert tone="info">This item is assigned to you. Billing and assigning other people are set by an admin.</Alert>}
+
+        {detailEdit ? (
           <>
             <Field label="Title">
               <Input value={f.title} onChange={(e) => set("title", e.target.value)} autoFocus={isNew} />
@@ -204,6 +231,7 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
                 <Input type="date" value={f.due_date} onChange={(e) => set("due_date", e.target.value)} />
               </Field>
             </div>
+            {fullEdit && (<>
             <div className="grid items-end gap-3 sm:grid-cols-2">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={f.is_billable} onChange={(e) => set("is_billable", e.target.checked)} />
@@ -231,6 +259,7 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
                 {activePeople.length === 0 && <span className="text-sm text-slate-500">No team members yet.</span>}
               </div>
             </div>
+            </>)}
           </>
         ) : (
           item && (
