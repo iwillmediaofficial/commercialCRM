@@ -405,14 +405,16 @@ function LeadsPage() {
         <Card>
           {filtered.length ? (
             <div className="-mx-5 overflow-x-auto">
-              <table className="w-full min-w-[980px] text-sm">
+              <table className="w-full min-w-[1100px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-5 py-2 font-medium">Lead</th>
                     <th className="px-2 py-2 font-medium">Contact</th>
                     <th className="px-2 py-2 font-medium">Source</th>
                     <th className="px-2 py-2 font-medium">Stage</th>
-                    <th className="px-2 py-2 font-medium">Quick check</th>
+                    {questions.map((x) => (
+                      <th key={x.key} className="max-w-[110px] px-2 py-2 font-medium leading-tight">{x.label}</th>
+                    ))}
                     <th className="px-2 py-2 text-right font-medium">Value</th>
                     <th className="px-2 py-2 font-medium">Assigned</th>
                     <th className="px-2 py-2 font-medium">Last remark</th>
@@ -445,16 +447,18 @@ function LeadsPage() {
                           <Badge tone={STAGE_TONE[l.stage as Stage]}>{STAGE_LABEL[l.stage as Stage]}</Badge>
                         )}
                       </td>
-                      <td className="px-2 py-2">
-                        <div className="flex max-w-[200px] flex-wrap gap-1">
-                          {questions.map((x) => {
-                            const a = parseAnswers(l.answers)[x.key];
-                            return a ? (
-                              <span key={x.key} title={`${x.label} ${a}`} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(a).chip}`}>{a}</span>
-                            ) : null;
-                          })}
-                        </div>
-                      </td>
+                      {questions.map((x) => {
+                        const a = parseAnswers(l.answers)[x.key];
+                        return (
+                          <td key={x.key} className="px-2 py-2">
+                            {a ? (
+                              <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(a).chip}`}>{a}</span>
+                            ) : (
+                              <span className="text-xs text-slate-300">—</span>
+                            )}
+                          </td>
+                        );
+                      })}
                       <td className="px-2 py-2 text-right">{l.value != null ? inr(l.value) : ""}</td>
                       <td className="px-2 py-2">{nameOf(people, l.assigned_to)}</td>
                       <td className="max-w-[220px] px-2 py-2 text-xs text-slate-600">
