@@ -22,6 +22,9 @@ export default function Work() {
   const me = session?.user.id;
   const people = useMembers(workspace.id);
   const [params, setParams] = useSearchParams();
+  // Staff the owner or an admin let add their own work items.
+  const canSelfAdd = canWrite && !isAdmin && !!people.find((p) => p.user_id === me)?.can_add_own_work;
+  const canCreate = canWrite && (isAdmin || canSelfAdd);
 
   const [items, setItems] = useState<WorkItem[] | null>(null);
   const [assign, setAssign] = useState<Record<string, string[]>>({});
@@ -76,15 +79,16 @@ export default function Work() {
   const wantsNew = params.get("new") === "1";
   useEffect(() => {
     if ((!openId && !wantsNew) || !items) return;
+    if (wantsNew && !openId && canWrite && !isAdmin && people.length === 0) return; // wait to know if staff may add work
     const it = openId ? items.find((x) => x.id === openId) : null;
     if (it) setOpen(it);
-    else if (wantsNew && isAdmin && canWrite) setOpen("new");
+    else if (wantsNew && canCreate) setOpen("new");
     setParams((p) => {
       p.delete("open");
       p.delete("new");
       return p;
     }, { replace: true });
-  }, [openId, wantsNew, items, isAdmin, canWrite, setParams]);
+  }, [openId, wantsNew, items, canCreate, canWrite, isAdmin, people.length, setParams]);
 
   function changeView(v: View) {
     setView(v);
@@ -197,7 +201,7 @@ export default function Work() {
               </button>
             ))}
           </div>
-          {isAdmin && canWrite && <Button onClick={() => setOpen("new")}>+ New work item</Button>}
+          {canCreate && <Button onClick={() => setOpen("new")}>+ New work item</Button>}
         </div>
       </div>
 
@@ -241,7 +245,11 @@ export default function Work() {
       {items.length === 0 ? (
         <Card>
           <Empty>
-            {isAdmin ? "No work items yet. Create one to start planning your team's work." : "Nothing is assigned to you yet."}
+            {isAdmin
+              ? "No work items yet. Create one to start planning your team's work."
+              : canSelfAdd
+                ? "Nothing is assigned to you yet. Use \"+ New work item\" to add your own."
+                : "Nothing is assigned to you yet."}
           </Empty>
         </Card>
       ) : view === "board" ? (
@@ -356,6 +364,7 @@ export default function Work() {
           clients={clients}
           people={people}
           me={me}
+          canSelfAdd={canSelfAdd}
           onClose={() => setOpen(null)}
           onSaved={load}
         />

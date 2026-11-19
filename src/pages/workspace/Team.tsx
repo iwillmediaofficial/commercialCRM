@@ -112,7 +112,7 @@ export default function Team() {
     load();
   }
 
-  async function updateMember(m: Member, change: { is_active?: boolean; role?: MemberRole }) {
+  async function updateMember(m: Member, change: { is_active?: boolean; role?: MemberRole; can_add_own_work?: boolean }) {
     setError("");
     const { error } = await supabase
       .from("workspace_members")
@@ -182,6 +182,9 @@ export default function Team() {
                       <span className="font-medium">{p?.full_name || p?.email || "Member"}</span>
                       {isMe && <span className="text-xs text-slate-400">(you)</span>}
                       <Badge tone={ROLE_TONE[m.role]}><span className="capitalize">{m.role}</span></Badge>
+                      {m.role === "staff" && m.can_add_own_work && !manageable && (
+                        <Badge tone="bg-indigo-50 text-indigo-700">Adds own work</Badge>
+                      )}
                       {m.is_active ? (
                         <Badge tone="bg-green-100 text-green-700">Active</Badge>
                       ) : (
@@ -224,6 +227,19 @@ export default function Team() {
                         <option value="admin">Admin</option>
                       </Select>
                     )}
+                    {m.role === "staff" && hasModule("work") && (
+                      <label
+                        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm ring-1 ring-slate-200"
+                        title="Lets this person create work items for themselves on the Work board"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={m.can_add_own_work}
+                          onChange={(e) => updateMember(m, { can_add_own_work: e.target.checked })}
+                        />
+                        Can add own work
+                      </label>
+                    )}
                     <Button variant="secondary" onClick={() => issue("reset", m)}>Reset PIN</Button>
                     {m.is_active ? (
                       <Button variant="danger" onClick={() => updateMember(m, { is_active: false })}>Deactivate</Button>
@@ -239,8 +255,8 @@ export default function Team() {
         {isAdmin && (
           <p className="mt-3 text-xs text-slate-500">
             {myRole === "owner"
-              ? "As the owner you can switch others between Admin and Staff. Admins manage all modules, billing, ad funds and settings; Staff work on their own tasks, time and leads."
-              : "Only the owner can change roles. Admins manage all modules, billing, ad funds and settings; Staff work on their own tasks, time and leads."}
+              ? "As the owner you can switch others between Admin and Staff. Admins manage all modules, billing, ad funds and settings; Staff work on their own tasks, time and leads. Turn on \"Can add own work\" to let a staff member create work items for themselves."
+              : "Only the owner can change roles. Admins manage all modules, billing, ad funds and settings; Staff work on their own tasks, time and leads. Turn on \"Can add own work\" to let a staff member create work items for themselves."}
           </p>
         )}
       </Card>

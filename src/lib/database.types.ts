@@ -1680,6 +1680,7 @@ export type Database = {
       }
       workspace_members: {
         Row: {
+          can_add_own_work: boolean
           is_active: boolean
           joined_at: string
           role: Database["public"]["Enums"]["member_role"]
@@ -1687,6 +1688,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          can_add_own_work?: boolean
           is_active?: boolean
           joined_at?: string
           role?: Database["public"]["Enums"]["member_role"]
@@ -1694,6 +1696,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          can_add_own_work?: boolean
           is_active?: boolean
           joined_at?: string
           role?: Database["public"]["Enums"]["member_role"]
