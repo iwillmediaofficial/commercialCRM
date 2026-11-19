@@ -11,6 +11,7 @@ import { followUpState, followUpTone, whenLabel } from "./followUp";
 import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
 import type { Json } from "../../../lib/database.types";
 import LeadPanel from "./LeadPanel";
+import FollowUpResults, { wonAt, type StatActivity } from "./FollowUpResults";
 
 type Row = {
   id: string;
@@ -27,7 +28,15 @@ type Row = {
   last_remark_at: string | null;
   created_at: string;
   answers: Json;
+  lost_reason: string | null;
 };
+
+const RANGES = [
+  { days: 7, label: "Last 7 days", phrase: "last 7 days" },
+  { days: 30, label: "Last 30 days", phrase: "last 30 days" },
+  { days: 90, label: "Last 90 days", phrase: "last 90 days" },
+];
+const DAY = 24 * 3600 * 1000;
 
 type Tab = "overdue" | "today" | "upcoming" | "uncontacted" | "none";
 const TABS: { key: Tab; label: string; hint: string; tone: string }[] = [
@@ -53,7 +62,11 @@ export default function FollowUps() {
   const me = session?.user.id ?? "";
   const people = useMembers(workspace.id);
   const questions = useLeadQuestions(workspace.id);
-  const [rows, setRows] = useState<Row[] | null>(null);
+  const [allRows, setAllRows] = useState<Row[] | null>(null);
+  const rows = useMemo(() => allRows?.filter((r) => r.stage !== "won" && r.stage !== "lost") ?? null, [allRows]);
+  const [activities, setActivities] = useState<StatActivity[]>([]);
+  const [view, setView] = useState<"desk" | "results">("desk");
+  const [days, setDays] = useState(30);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("overdue");
   const [who, setWho] = useState("");
@@ -89,12 +102,28 @@ export default function FollowUps() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("leads")
-      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at, answers")
+      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at, answers, lost_reason")
       .eq("workspace_id", workspace.id)
-      .not("stage", "in", "(won,lost)");
+      .limit(5000);
     if (error) setError(error.message);
-    setRows(data ?? []);
+    setAllRows(data ?? []);
   }, [workspace.id]);
+
+  // Stage changes and logged contacts for this period and the one before (for "vs before").
+  const loadActivities = useCallback(async () => {
+    const { data } = await supabase
+      .from("lead_activities")
+      .select("lead_id, kind, details, created_by, created_at")
+      .eq("workspace_id", workspace.id)
+      .in("kind", ["stage", "call", "whatsapp", "meeting"])
+      .gte("created_at", new Date(Date.now() - 2 * days * DAY).toISOString())
+      .order("created_at")
+      .limit(10000);
+    setActivities(data ?? []);
+  }, [workspace.id, days]);
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
 
   useEffect(() => {
     load();
@@ -111,6 +140,25 @@ export default function FollowUps() {
     () => (rows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who)),
     [rows, who],
   );
+  const mineAll = useMemo(
+    () => (allRows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who)),
+    [allRows, who],
+  );
+  // Leads won in this period and the one before.
+  const won = useMemo(() => {
+    const since = Date.now() - days * DAY;
+    let now = 0;
+    let before = 0;
+    for (const r of mineAll) {
+      if (r.stage !== "won") continue;
+      const w = wonAt(r.id, activities);
+      if (!w) continue;
+      const t = new Date(w).getTime();
+      if (t >= since) now++;
+      else if (t >= since - days * DAY) before++;
+    }
+    return { now, before };
+  }, [mineAll, activities, days]);
   const groups = useMemo(() => {
     const g: Record<Tab, Row[]> = { overdue: [], today: [], upcoming: [], uncontacted: [], none: [] };
     for (const r of mine) for (const t of tabOf(r)) g[t].push(r);
@@ -167,6 +215,7 @@ export default function FollowUps() {
       setToast(`Saved ${name}.`);
     }
     load();
+    loadActivities();
   }
 
   if (!hasModule("leads")) {
@@ -194,6 +243,22 @@ export default function FollowUps() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg bg-white p-0.5 ring-1 ring-slate-200" role="group" aria-label="View">
+            {(["desk", "results"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                onClick={() => setView(v)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === v ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                {v === "desk" ? "Follow up" : "Results"}
+              </button>
+            ))}
+          </div>
+          <Select className="!w-auto" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period">
+            {RANGES.map((r) => <option key={r.days} value={r.days}>{r.label}</option>)}
+          </Select>
           {away !== null && canWrite && (
             <label
               className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ring-1 ${away ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-green-50 text-green-800 ring-green-200"}`}
@@ -218,6 +283,53 @@ export default function FollowUps() {
 
       {error && <Alert>{error}</Alert>}
 
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { key: "overdue" as const, label: "Overdue", value: groups.overdue.length, hint: "Follow-up time has passed", tone: groups.overdue.length ? "text-red-600" : "text-slate-900" },
+          { key: "today" as const, label: "Due today", value: groups.today.length, hint: "Still to do today", tone: "text-slate-900" },
+          { key: "uncontacted" as const, label: "New, not called yet", value: groups.uncontacted.length, hint: "Call these first", tone: groups.uncontacted.length ? "text-rose-600" : "text-slate-900" },
+          {
+            key: "won" as const,
+            label: "Won",
+            value: won.now,
+            hint: won.before || won.now ? `${won.before} in the ${RANGES.find((r) => r.days === days)!.phrase.replace("last", "previous")}` : `In the ${RANGES.find((r) => r.days === days)!.phrase}`,
+            tone: "text-green-700",
+          },
+        ].map((t) => {
+          const active = t.key === "won" ? view === "results" : view === "desk" && !q && tab === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                if (t.key === "won") return setView("results");
+                setView("desk");
+                setTab(t.key);
+                setQ("");
+                setMobileOpen(false);
+              }}
+              className={`rounded-xl bg-white p-4 text-left shadow-sm ring-1 transition hover:ring-slate-300 ${active ? "ring-2 ring-indigo-500" : "ring-slate-200"}`}
+            >
+              <div className="text-sm font-medium text-slate-500">{t.label}</div>
+              <div className={`mt-1 text-2xl font-bold tabular-nums ${t.tone}`}>{t.value}</div>
+              <div className="mt-0.5 text-xs text-slate-500">{t.hint}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {view === "results" ? (
+        <FollowUpResults
+          leads={mineAll}
+          allLeads={allRows ?? []}
+          activities={activities}
+          since={Date.now() - days * DAY}
+          rangeLabel={RANGES.find((r) => r.days === days)!.phrase}
+          people={people}
+          showTeam={isAdmin && who === ""}
+        />
+      ) : (
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className={`min-w-0 rounded-xl bg-white shadow-sm ring-1 ring-slate-200 lg:sticky lg:top-4 ${mobileOpen ? "hidden lg:block" : ""}`}>
           <div className="flex flex-wrap gap-1 border-b border-slate-100 p-2" role="tablist">
@@ -304,6 +416,7 @@ export default function FollowUps() {
           )}
         </div>
       </div>
+      )}
 
       {toast && (
         <div role="status" className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg">

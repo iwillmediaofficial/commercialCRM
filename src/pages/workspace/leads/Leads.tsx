@@ -6,7 +6,9 @@ import { useWorkspace } from "../../../lib/workspace";
 import { useLiveTable } from "../../../lib/realtime";
 import { nameOf, useMembers } from "../../../lib/members";
 import { downloadCsv, inr } from "../../../lib/format";
-import { Alert, Badge, Button, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
+import { Alert, Badge, Button, Card, Drawer, Empty, Input, Select, Spinner } from "../../../components/ui";
+import LeadPanel from "./LeadPanel";
+import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
 import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
 import { LostReasonModal, followUpTone, whenLabel } from "./followUp";
@@ -42,6 +44,9 @@ export default function Leads() {
   const [stage, setStage] = useState("");
   const [source, setSource] = useState("");
   const [assignee, setAssignee] = useState("");
+  const [check, setCheck] = useState(""); // "<question key>\t<answer>", or "<key>\t" for unanswered
+  const [panelId, setPanelId] = useState<string | null>(null);
+  const questions = useLeadQuestions(workspace.id);
   const [editing, setEditing] = useState<Lead | "new" | null>(null);
   const [converting, setConverting] = useState<Lead | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -75,7 +80,10 @@ export default function Leads() {
   useEffect(() => {
     if ((!openId && !wantsNew) || !leads) return;
     const l = openId ? leads.find((x) => x.id === openId) : null;
-    if (l) setEditing(l);
+    if (l) {
+      setPanelId(null);
+      setEditing(l);
+    }
     else if (wantsNew && canWrite) setEditing("new");
     setParams((p) => {
       p.delete("open");
@@ -124,10 +132,14 @@ export default function Leads() {
       if (view === "table" && stage && l.stage !== stage) return false;
       if (source && l.source !== source) return false;
       if (assignee === "none" ? l.assigned_to : assignee && l.assigned_to !== assignee) return false;
+      if (check) {
+        const [key, want] = check.split("\t");
+        if ((parseAnswers(l.answers)[key] ?? "") !== want) return false;
+      }
       if (!term) return true;
       return remarkHits.has(l.id) || [l.name, l.phone, l.email, l.company, l.last_remark].some((x) => x?.toLowerCase().includes(term));
     });
-  }, [leads, q, stage, source, assignee, view, remarkHits]);
+  }, [leads, q, stage, source, assignee, check, view, remarkHits]);
 
   const sourceOptions = useMemo(() => {
     const extra = (leads ?? []).map((l) => l.source).filter((s) => !SOURCES.includes(s));
@@ -244,8 +256,9 @@ export default function Leads() {
             onClick={() =>
               downloadCsv(
                 "leads.csv",
-                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", "Next follow-up", "Last contact", "Last remark", "Added"],
+                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", ...questions.map((x) => x.label), "Next follow-up", "Last contact", "Last remark", "Added"],
                 filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
+                  ...questions.map((x) => parseAnswers(l.answers)[x.key] ?? ""),
                   l.follow_up_at ? new Date(l.follow_up_at).toLocaleString("en-IN") : "", l.last_contacted_at ? new Date(l.last_contacted_at).toLocaleString("en-IN") : "",
                   l.last_remark, l.created_at.slice(0, 10)]),
               )
@@ -259,7 +272,7 @@ export default function Leads() {
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <Input type="search" placeholder="Search name, phone, company, remarks" value={q} onChange={(e) => setQ(e.target.value)} />
         {view === "table" && (
           <Select value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">
@@ -276,6 +289,17 @@ export default function Leads() {
           <option value="none">Not assigned</option>
           {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.user_id === me ? `${p.full_name} (me)` : p.full_name}</option>)}
         </Select>
+        {questions.length > 0 && (
+          <Select value={check} onChange={(e) => setCheck(e.target.value)} aria-label="Quick check answer">
+            <option value="">Any quick-check answer</option>
+            {questions.map((x) => (
+              <optgroup key={x.key} label={x.label}>
+                {x.options.map((o) => <option key={o} value={`${x.key}\t${o}`}>{x.label} {o}</option>)}
+                <option value={`${x.key}\t`}>{x.label} not answered</option>
+              </optgroup>
+            ))}
+          </Select>
+        )}
       </div>
 
       {view === "board" ? (
@@ -361,13 +385,14 @@ export default function Leads() {
         <Card>
           {filtered.length ? (
             <div className="-mx-5 overflow-x-auto">
-              <table className="w-full min-w-[860px] text-sm">
+              <table className="w-full min-w-[980px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
                     <th className="px-5 py-2 font-medium">Lead</th>
                     <th className="px-2 py-2 font-medium">Contact</th>
                     <th className="px-2 py-2 font-medium">Source</th>
                     <th className="px-2 py-2 font-medium">Stage</th>
+                    <th className="px-2 py-2 font-medium">Quick check</th>
                     <th className="px-2 py-2 text-right font-medium">Value</th>
                     <th className="px-2 py-2 font-medium">Assigned</th>
                     <th className="px-2 py-2 font-medium">Last remark</th>
@@ -376,7 +401,7 @@ export default function Leads() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {[...filtered].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((l) => (
-                    <tr key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setEditing(l)}>
+                    <tr key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setPanelId(l.id)}>
                       <td className="px-5 py-2">
                         <div className="font-medium">{l.name}</div>
                         {l.company && <div className="text-xs text-slate-500">{l.company}</div>}
@@ -399,6 +424,16 @@ export default function Leads() {
                         ) : (
                           <Badge tone={STAGE_TONE[l.stage as Stage]}>{STAGE_LABEL[l.stage as Stage]}</Badge>
                         )}
+                      </td>
+                      <td className="px-2 py-2">
+                        <div className="flex max-w-[200px] flex-wrap gap-1">
+                          {questions.map((x) => {
+                            const a = parseAnswers(l.answers)[x.key];
+                            return a ? (
+                              <span key={x.key} title={`${x.label} ${a}`} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(a).chip}`}>{a}</span>
+                            ) : null;
+                          })}
+                        </div>
                       </td>
                       <td className="px-2 py-2 text-right">{l.value != null ? inr(l.value) : ""}</td>
                       <td className="px-2 py-2">{nameOf(people, l.assigned_to)}</td>
@@ -423,6 +458,23 @@ export default function Leads() {
             <Empty>{leads.length ? "No leads match these filters." : "No leads yet. Add one, or share a lead form."}</Empty>
           )}
         </Card>
+      )}
+
+      {panelId && (
+        <Drawer title="Follow up" onClose={() => setPanelId(null)}>
+          <LeadPanel
+            leadId={panelId}
+            questions={questions}
+            people={people}
+            me={me}
+            hasNext={false}
+            onSaved={() => {
+              setPanelId(null);
+              load();
+            }}
+            onBack={() => setPanelId(null)}
+          />
+        </Drawer>
       )}
 
       {editing && (
