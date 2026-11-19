@@ -4,6 +4,7 @@ import type { Json } from "../../../lib/database.types";
 import { useWorkspace } from "../../../lib/workspace";
 import { ImagePicker } from "../../../components/Files";
 import { Alert, Button, Card, Field, Input, Spinner, Textarea } from "../../../components/ui";
+import LeadQuestionsEditor from "./LeadQuestionsEditor";
 
 type Settings = Tables<"workspace_settings">;
 
@@ -42,7 +43,7 @@ function toForm(s: Settings): Form {
 }
 
 export default function WorkspaceSettings() {
-  const { workspace, isAdmin, role, canWrite } = useWorkspace();
+  const { workspace, isAdmin, role, canWrite, hasModule } = useWorkspace();
   const supportView = role === null;
   const [settings, setSettings] = useState<Settings | null>(null);
   const [form, setForm] = useState<Form | null>(null);
@@ -158,6 +159,7 @@ export default function WorkspaceSettings() {
   }
 
   return (
+    <div className="space-y-4">
     <form className="space-y-4" onSubmit={save}>
       {readOnly && (
         <Alert tone="warning">
@@ -278,6 +280,8 @@ export default function WorkspaceSettings() {
         </div>
       )}
     </form>
+    {hasModule("leads") && <LeadQuestionsEditor workspaceId={workspace.id} initial={settings.lead_questions} readOnly={readOnly} />}
+    </div>
   );
 }
 

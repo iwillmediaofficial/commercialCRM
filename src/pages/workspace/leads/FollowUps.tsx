@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router";
 import { supabase } from "../../../lib/supabase";
 import { useAuth } from "../../../lib/auth";
 import { useWorkspace } from "../../../lib/workspace";
 import { useLiveTable } from "../../../lib/realtime";
 import { nameOf, useMembers } from "../../../lib/members";
-import { Alert, Badge, Card, Empty, Select, Spinner } from "../../../components/ui";
-import { STAGE_LABEL, STAGE_TONE, type Stage } from "./leadShared";
+import { Alert, Card, Empty, Input, Select, Spinner } from "../../../components/ui";
+import { STAGE_LABEL, type Stage } from "./leadShared";
 import { ago } from "./LeadTimeline";
-import { useContactLog } from "./ContactPrompt";
-import { QUICK_PICKS, followUpState, followUpTone, telLink, waLink, whenLabel } from "./followUp";
+import { followUpState, followUpTone, whenLabel } from "./followUp";
+import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
+import type { Json } from "../../../lib/database.types";
+import LeadPanel from "./LeadPanel";
 
 type Row = {
   id: string;
@@ -25,6 +26,7 @@ type Row = {
   last_remark: string | null;
   last_remark_at: string | null;
   created_at: string;
+  answers: Json;
 };
 
 type Tab = "overdue" | "today" | "upcoming" | "uncontacted" | "none";
@@ -50,12 +52,16 @@ export default function FollowUps() {
   const { session } = useAuth();
   const me = session?.user.id ?? "";
   const people = useMembers(workspace.id);
-  const { logContact } = useContactLog();
+  const questions = useLeadQuestions(workspace.id);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("overdue");
   const [who, setWho] = useState("");
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [panelKey, setPanelKey] = useState(0);
+  const [toast, setToast] = useState("");
   const [, tick] = useState(0);
   // Your place in the automatic lead rotation (null = not in it).
   const [away, setAwayState] = useState<boolean | null>(null);
@@ -83,7 +89,7 @@ export default function FollowUps() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("leads")
-      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at")
+      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at, answers")
       .eq("workspace_id", workspace.id)
       .not("stage", "in", "(won,lost)");
     if (error) setError(error.message);
@@ -117,13 +123,50 @@ export default function FollowUps() {
     return g;
   }, [mine]);
 
-  async function snooze(r: Row, at: string) {
-    setError("");
-    setBusyId(r.id);
-    const { error } = await supabase.from("leads").update({ follow_up_at: at }).eq("workspace_id", workspace.id).eq("id", r.id);
-    setBusyId(null);
-    if (error) return setError(error.message);
-    setRows((xs) => (xs ?? []).map((x) => (x.id === r.id ? { ...x, follow_up_at: at } : x)));
+
+
+  // The list shown on the left: the tab, or search across all open leads.
+  const list = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return groups[tab];
+    const digits = term.replace(/\D/g, "");
+    return mine.filter(
+      (r) => r.name.toLowerCase().includes(term) || (r.company ?? "").toLowerCase().includes(term) || (digits.length >= 3 && (r.phone ?? "").replace(/\D/g, "").includes(digits)),
+    );
+  }, [groups, tab, q, mine]);
+
+  // Keep a lead open on wide screens: the first one in the list.
+  useEffect(() => {
+    if (!rows) return;
+    if (selected && (list.some((r) => r.id === selected) || mobileOpen)) return;
+    setSelected(list[0]?.id ?? null);
+  }, [list, rows, selected, mobileOpen]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  function openLead(id: string) {
+    setSelected(id);
+    setMobileOpen(true);
+    setPanelKey((k) => k + 1);
+    if (window.innerWidth < 1024) window.scrollTo({ top: 0 });
+  }
+
+  function afterSave(savedId: string) {
+    const name = rows?.find((r) => r.id === savedId)?.name.split(" ")[0] ?? "Lead";
+    const i = list.findIndex((r) => r.id === savedId);
+    const next = list.slice(i + 1).find((r) => r.id !== savedId) ?? list.find((r) => r.id !== savedId);
+    setPanelKey((k) => k + 1);
+    if (next) {
+      setSelected(next.id);
+      setToast(`Saved ${name}. Opened the next lead.`);
+    } else {
+      setToast(`Saved ${name}.`);
+    }
+    load();
   }
 
   if (!hasModule("leads")) {
@@ -135,9 +178,10 @@ export default function FollowUps() {
   }
   if (!rows) return <Spinner />;
 
-  const list = groups[tab];
   const info = TABS.find((t) => t.key === tab)!;
-  const leadLink = (id: string) => `/w/${workspace.slug}/leads?open=${id}`;
+  const listQuestions = questions.filter((x) => x.show_in_list);
+  const currentIndex = list.findIndex((r) => r.id === selected);
+  const hasNext = list.some((r, i) => r.id !== selected && (currentIndex < 0 || i !== currentIndex));
 
   return (
     <>
@@ -150,109 +194,122 @@ export default function FollowUps() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-        {away !== null && canWrite && (
-          <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ring-1 ${away ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-green-50 text-green-800 ring-green-200"}`}
-            title="When you're away, new leads skip you and go to the next person."
-          >
-            <input type="checkbox" checked={!away} onChange={(e) => toggleAway(!e.target.checked)} />
-            {away ? "Away: not getting new leads" : "Getting new leads"}
-          </label>
-        )}
-        {isAdmin && (
-          <Select className="!w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose follow-ups">
-            <option value="">Everyone</option>
-            <option value={me}>Mine</option>
-            <option value="none">Nobody assigned</option>
-            {people.filter((p) => p.is_active && p.user_id !== me).map((p) => (
-              <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
-            ))}
-          </Select>
-        )}
+          {away !== null && canWrite && (
+            <label
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ring-1 ${away ? "bg-amber-50 text-amber-800 ring-amber-200" : "bg-green-50 text-green-800 ring-green-200"}`}
+              title="When you're away, new leads skip you and go to the next person."
+            >
+              <input type="checkbox" checked={!away} onChange={(e) => toggleAway(!e.target.checked)} />
+              {away ? "Away: not getting new leads" : "Getting new leads"}
+            </label>
+          )}
+          {isAdmin && (
+            <Select className="!w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose follow-ups">
+              <option value="">Everyone</option>
+              <option value={me}>Mine</option>
+              <option value="none">Nobody assigned</option>
+              {people.filter((p) => p.is_active && p.user_id !== me).map((p) => (
+                <option key={p.user_id} value={p.user_id}>{p.full_name}</option>
+              ))}
+            </Select>
+          )}
         </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="flex flex-wrap gap-2" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ring-1 ${tab === t.key ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
-          >
-            {t.label}
-            <span className={`rounded-full px-1.5 text-xs ${tab === t.key ? "bg-white/20 text-white" : t.tone}`}>{groups[t.key].length}</span>
-          </button>
-        ))}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
+        <div className={`min-w-0 rounded-xl bg-white shadow-sm ring-1 ring-slate-200 lg:sticky lg:top-4 ${mobileOpen ? "hidden lg:block" : ""}`}>
+          <div className="flex flex-wrap gap-1 border-b border-slate-100 p-2" role="tablist">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={!q && tab === t.key}
+                onClick={() => {
+                  setTab(t.key);
+                  setQ("");
+                }}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${!q && tab === t.key ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"}`}
+              >
+                {t.label}
+                <span className={`rounded-full px-1.5 text-[11px] font-semibold ${!q && tab === t.key ? "bg-indigo-600 text-white" : t.tone}`}>{groups[t.key].length}</span>
+              </button>
+            ))}
+          </div>
+          <div className="space-y-2 p-2">
+            <Input type="search" placeholder="Search name or phone" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search open leads" />
+            <p className="px-1 text-xs text-slate-500">{q ? `${list.length} open lead${list.length === 1 ? "" : "s"} found` : info.hint}</p>
+          </div>
+          <div className="max-h-[70vh] space-y-1.5 overflow-y-auto px-2 pb-2">
+            {list.length ? (
+              list.map((r) => {
+                const ans = parseAnswers(r.answers);
+                const current = r.id === selected;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => openLead(r.id)}
+                    aria-current={current}
+                    className={`block w-full rounded-lg px-3 py-2.5 text-left ring-1 transition ${current ? "bg-indigo-50 ring-indigo-400" : "bg-white ring-slate-200 hover:ring-slate-300"}`}
+                  >
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 truncate font-medium text-slate-900">{r.name}</span>
+                      <span className="flex shrink-0 gap-1">
+                        {listQuestions.map((lq) =>
+                          ans[lq.key] ? (
+                            <span key={lq.key} className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${answerTone(ans[lq.key]).chip}`}>{ans[lq.key]}</span>
+                          ) : null,
+                        )}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-slate-500">
+                      {!r.first_contacted_at && !r.follow_up_at ? (
+                        <span className="font-medium text-rose-600">New · added {ago(r.created_at)}</span>
+                      ) : r.follow_up_at ? (
+                        <span className={`font-medium ${followUpTone(r.follow_up_at)}`}>
+                          {followUpState(r.follow_up_at) === "overdue" ? "Overdue · " : ""}
+                          {whenLabel(r.follow_up_at)}
+                        </span>
+                      ) : (
+                        <span>No follow-up set</span>
+                      )}
+                      <span>· {STAGE_LABEL[r.stage as Stage] ?? r.stage}</span>
+                      {isAdmin && who === "" && <span>· {nameOf(people, r.assigned_to) || "Nobody"}</span>}
+                    </span>
+                  </button>
+                );
+              })
+            ) : (
+              <Empty>{q ? "No open leads match." : tab === "overdue" ? "Nothing overdue. Nice work." : "Nothing here."}</Empty>
+            )}
+          </div>
+        </div>
+
+        <div className={`min-w-0 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200 ${mobileOpen ? "" : "hidden lg:block"}`}>
+          {selected ? (
+            <LeadPanel
+              key={`${selected}:${panelKey}`}
+              leadId={selected}
+              questions={questions}
+              people={people}
+              me={me}
+              hasNext={hasNext}
+              onSaved={afterSave}
+              onBack={() => setMobileOpen(false)}
+            />
+          ) : (
+            <Empty>Pick a lead from the list.</Empty>
+          )}
+        </div>
       </div>
 
-      <Card>
-        <p className="mb-3 text-xs text-slate-500">{info.hint}</p>
-        {list.length ? (
-          <ul className="-mx-5 divide-y divide-slate-100">
-            {list.map((r) => {
-              const tel = telLink(r.phone);
-              const wa = waLink(r.phone);
-              return (
-                <li key={r.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3">
-                  <div className="min-w-[180px] flex-1">
-                    <Link to={leadLink(r.id)} className="font-medium text-slate-900 hover:text-indigo-700 hover:underline">{r.name}</Link>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-                      {r.company && <span>{r.company}</span>}
-                      <Badge tone={STAGE_TONE[r.stage as Stage]}>{STAGE_LABEL[r.stage as Stage] ?? r.stage}</Badge>
-                      {isAdmin && <span>{nameOf(people, r.assigned_to) || "Nobody assigned"}</span>}
-                    </div>
-                    {r.last_remark && (
-                      <p className="mt-1 line-clamp-2 break-words text-xs text-slate-600">
-                        <span className="text-slate-400">{r.last_remark_at ? `${ago(r.last_remark_at)}: ` : ""}</span>
-                        {r.last_remark}
-                      </p>
-                    )}
-                  </div>
-                  <div className="w-40 text-sm">
-                    {tab === "uncontacted" ? (
-                      <span className="text-rose-600">Added {ago(r.created_at)}</span>
-                    ) : r.follow_up_at ? (
-                      <span className={followUpTone(r.follow_up_at)}>{whenLabel(r.follow_up_at)}</span>
-                    ) : (
-                      <span className="text-slate-400">
-                        {r.last_contacted_at ? `Last contact ${ago(r.last_contacted_at)}` : "No follow-up"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {tel && <a href={tel} onClick={() => logContact(r, "call")} className="rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-sky-700">Call</a>}
-                    {wa && <a href={wa} target="_blank" rel="noreferrer" onClick={() => logContact(r, "whatsapp")} className="rounded-md bg-green-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-green-700">WhatsApp</a>}
-                    <Link to={leadLink(r.id)} className="rounded-md bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
-                      Log &amp; open
-                    </Link>
-                    {canWrite && (
-                      <select
-                        aria-label={`Snooze ${r.name}`}
-                        className="rounded-md border-0 bg-white py-1 pl-2 pr-7 text-xs font-semibold text-slate-700 ring-1 ring-slate-200"
-                        value=""
-                        disabled={busyId === r.id}
-                        onChange={(e) => {
-                          const q = QUICK_PICKS.find((x) => x.key === e.target.value);
-                          if (q) snooze(r, q.at());
-                        }}
-                      >
-                        <option value="">{r.follow_up_at ? "Snooze…" : "Set follow-up…"}</option>
-                        {QUICK_PICKS.map((q) => <option key={q.key} value={q.key}>{q.label}</option>)}
-                      </select>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <Empty>{tab === "overdue" ? "Nothing overdue. Nice work." : "Nothing here."}</Empty>
-        )}
-      </Card>
+      {toast && (
+        <div role="status" className="fixed bottom-4 left-1/2 z-40 -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg">
+          {toast}
+        </div>
+      )}
     </>
   );
 }

@@ -883,6 +883,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          answers: Json
           assigned_to: string | null
           campaign_details: string | null
           company: string | null
@@ -917,6 +918,7 @@ export type Database = {
           pass_on_count: number
         }
         Insert: {
+          answers?: Json
           assigned_to?: string | null
           campaign_details?: string | null
           company?: string | null
@@ -951,6 +953,7 @@ export type Database = {
           pass_on_count?: number
         }
         Update: {
+          answers?: Json
           assigned_to?: string | null
           campaign_details?: string | null
           company?: string | null
@@ -1679,6 +1682,7 @@ export type Database = {
       }
       workspace_settings: {
         Row: {
+          lead_questions: Json
           address: string | null
           bank_details: string | null
           city: string | null
@@ -1709,6 +1713,7 @@ export type Database = {
           pass_on_minutes: number | null
         }
         Insert: {
+          lead_questions?: Json
           address?: string | null
           bank_details?: string | null
           city?: string | null
@@ -1739,6 +1744,7 @@ export type Database = {
           pass_on_minutes?: number | null
         }
         Update: {
+          lead_questions?: Json
           address?: string | null
           bank_details?: string | null
           city?: string | null
