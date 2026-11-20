@@ -53,7 +53,8 @@ export async function readFile(file: File): Promise<Sheet> {
 
 function cellText(v: unknown): string {
   if (v === null || v === undefined) return "";
-  if (v instanceof Date) return isNaN(v.getTime()) ? "" : v.toISOString();
+  // Excel dates carry no time zone: keep the clock time as typed, to the minute.
+  if (v instanceof Date) return isNaN(v.getTime()) ? "" : new Date(Math.round(v.getTime() / 60000) * 60000).toISOString().slice(0, 16);
   if (typeof v === "number") return Number.isInteger(v) ? String(v) : String(v);
   return String(v);
 }
@@ -138,9 +139,11 @@ const CAMPAIGN_LABEL: Record<string, string> = {
 };
 
 function niceDate(v: string) {
-  const d = new Date(v);
+  // No offset (Excel date cells): show the clock time as it is.
+  const local = /^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(v);
+  const d = new Date(local ? `${v}Z` : v);
   if (!v || isNaN(d.getTime())) return v;
-  return d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString("en-IN", { timeZone: local ? "UTC" : "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
 // Meta writes phones as "p:+919876543210".
