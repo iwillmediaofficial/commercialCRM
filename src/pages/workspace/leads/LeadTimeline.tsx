@@ -69,6 +69,7 @@ function describe(a: Activity, people: Person[], forms: Record<string, { title: 
     case "created": {
       const form = str(d.form_id) ? forms[str(d.form_id)!] : undefined;
       const auto = d.auto === true && d.assigned_to ? ` · auto-assigned to ${who(d.assigned_to)}` : "";
+      if (str(d.import)) return `Imported from ${str(d.import)}${d.assigned_to ? ` · given to ${who(d.assigned_to)}` : ""}`;
       if (form) return `Lead came in from the form "${form.title}"${auto}`;
       if (!a.created_by) return `Lead came in from a lead form${auto}`;
       return `Lead added${str(d.source) ? ` (source: ${str(d.source)})` : ""}${auto}`;

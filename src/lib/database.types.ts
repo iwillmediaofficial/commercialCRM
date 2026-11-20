@@ -843,6 +843,57 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_imports: {
+        Row: {
+          id: string
+          workspace_id: string
+          file_name: string
+          source: string
+          assign_mode: string
+          assignee: string | null
+          total_rows: number
+          imported: number
+          skipped: number
+          finished_at: string | null
+          undone_at: string | null
+          undone_count: number | null
+          created_by: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          workspace_id: string
+          file_name: string
+          source?: string
+          assign_mode: string
+          assignee?: string | null
+          total_rows?: number
+          imported?: number
+          skipped?: number
+          finished_at?: string | null
+          undone_at?: string | null
+          undone_count?: number | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          file_name?: string
+          source?: string
+          assign_mode?: string
+          assignee?: string | null
+          total_rows?: number
+          imported?: number
+          skipped?: number
+          finished_at?: string | null
+          undone_at?: string | null
+          undone_count?: number | null
+          created_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       lead_forms: {
         Row: {
           banner_path: string | null
@@ -944,6 +995,7 @@ export type Database = {
           assigned_at: string | null
           auto_assigned: boolean
           pass_on_count: number
+          import_id: string | null
         }
         Insert: {
           answers?: Json
@@ -980,6 +1032,7 @@ export type Database = {
           assigned_at?: string | null
           auto_assigned?: boolean
           pass_on_count?: number
+          import_id?: string | null
         }
         Update: {
           answers?: Json
@@ -1016,6 +1069,7 @@ export type Database = {
           assigned_at?: string | null
           auto_assigned?: boolean
           pass_on_count?: number
+          import_id?: string | null
         }
         Relationships: [
           {
@@ -2255,6 +2309,22 @@ export type Database = {
       }
     }
     Functions: {
+      start_lead_import: {
+        Args: { p_workspace_id: string; p_file_name: string; p_source: string; p_assign: string; p_assignee: string | null; p_total: number }
+        Returns: string
+      }
+      import_lead_rows: {
+        Args: { p_import_id: string; p_rows: Json }
+        Returns: Json
+      }
+      finish_lead_import: {
+        Args: { p_import_id: string }
+        Returns: Json
+      }
+      mark_lead_import_undone: {
+        Args: { p_import_id: string; p_removed: number }
+        Returns: Json
+      }
       admin_create_demo_workspace: {
         Args: { p_name?: string; p_owner_email?: string; p_owner_name?: string }
         Returns: Json
