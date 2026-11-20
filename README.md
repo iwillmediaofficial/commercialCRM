@@ -98,6 +98,11 @@ Needs the Edge Function secret `ANTHROPIC_API_KEY`, plus the functions
 `whatsapp-webhook` (updated) and `whatsapp-ai-test` deployed, both sharing
 `supabase/functions/_shared/wa_ai.ts`.
 
+**Fill from website** (`whatsapp-ai-import`) reads the company's home page and up to
+five key pages and drafts the knowledge fields; the admin reviews and saves. Only
+public addresses are fetched (no IPs, private or local hosts). Usage counts toward
+the month's AI use.
+
 ## Launch checklist
 
 - Supabase > Authentication > Leaked password protection: turn on.

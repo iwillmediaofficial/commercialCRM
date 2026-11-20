@@ -52,15 +52,18 @@ export default function AssistantSettings() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [website, setWebsite] = useState("");
 
   useEffect(() => {
     if (!isAdmin) return;
     (async () => {
       const month = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).slice(0, 7) + "-01";
-      const [{ data: s, error: e }, { data: u }] = await Promise.all([
+      const [{ data: s, error: e }, { data: u }, { data: ws }] = await Promise.all([
         supabase.from("wa_ai_settings").select("*").eq("workspace_id", workspace.id).maybeSingle(),
         supabase.from("wa_ai_usage").select("*").eq("workspace_id", workspace.id).eq("month", month).maybeSingle(),
+        supabase.from("workspace_settings").select("website").eq("workspace_id", workspace.id).maybeSingle(),
       ]);
+      setWebsite(ws?.website ?? "");
       if (e) setError(e.message);
       setRow(s);
       setForm(toForm(s));
@@ -147,6 +150,13 @@ export default function AssistantSettings() {
 
           <Card title="What the assistant knows">
             <div className="space-y-3">
+              {!readOnly && (
+                <FromWebsite workspaceId={workspace.id} website={website} setWebsite={setWebsite}
+                  onFields={(fields) => {
+                    setSaved(false);
+                    setForm((f) => (f ? { ...f, ...fields } : f));
+                  }} />
+              )}
               <Area f={form} k="about" label="About the company" hint="What you do, where you are, what makes you different." set={set} readOnly={readOnly} rows={4} />
               <Area f={form} k="products" label="Products and services, with prices" hint="One per line is fine. The assistant never quotes a price that isn't written here." set={set} readOnly={readOnly} rows={6} />
               <Area f={form} k="faqs" label="Common questions and answers" hint="e.g. Q: Do you deliver? A: Yes, free within the city." set={set} readOnly={readOnly} rows={5} />
@@ -172,6 +182,59 @@ export default function AssistantSettings() {
 
         <TestBox workspaceId={workspace.id} saved={!!row} dirty={!saved && JSON.stringify(toForm(row)) !== JSON.stringify(form)} />
       </div>
+    </div>
+  );
+}
+
+const FILLABLE = ["about", "products", "faqs", "contact_hours", "policies"] as const;
+
+function FromWebsite({ workspaceId, website, setWebsite, onFields }: {
+  workspaceId: string; website: string; setWebsite: (v: string) => void;
+  onFields: (fields: Partial<Record<TextKey, string>>) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+
+  async function run() {
+    if (!website.trim() || busy) return;
+    setBusy(true);
+    setNote(null);
+    const { data, error } = await supabase.functions.invoke("whatsapp-ai-import", {
+      body: { workspace_id: workspaceId, url: website.trim() },
+    });
+    setBusy(false);
+    if (!data?.ok) {
+      setNote({ tone: "error", text: data?.message ?? (await errorText(error, "Couldn't read the website. Try again.")) });
+      return;
+    }
+    const fields = data.fields as Record<string, string>;
+    const filled: Partial<Record<TextKey, string>> = {};
+    for (const k of FILLABLE) if (fields[k]) filled[k] = fields[k];
+    onFields(filled);
+    const n = Object.keys(filled).length;
+    setNote({
+      tone: "success",
+      text: n
+        ? `Filled ${n} field${n > 1 ? "s" : ""} from ${(data.pages as string[]).length} page${(data.pages as string[]).length > 1 ? "s" : ""}. Check them, fix anything wrong, then Save.`
+        : "The website didn't have details the assistant can use. Fill the fields by hand.",
+    });
+  }
+
+  return (
+    <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200/70">
+      <div className="text-sm font-semibold">Fill from website</div>
+      <p className="mb-2 text-xs text-slate-500">
+        Reads the home page and a few key pages (about, products, prices, FAQ, contact) and fills the fields below. It replaces what's in them. Nothing is saved until you press Save.
+      </p>
+      <div className="flex gap-2">
+        <Input placeholder="www.yourcompany.com" value={website} maxLength={300} onChange={(e) => setWebsite(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); run(); } }} />
+        <Button type="button" variant="secondary" onClick={run} disabled={busy || !website.trim()}>
+          {busy ? "Reading…" : "Fill"}
+        </Button>
+      </div>
+      {busy && <p className="mt-2 text-xs text-slate-500">This takes up to a minute.</p>}
+      {note && <div className="mt-2"><Alert tone={note.tone}>{note.text}</Alert></div>}
     </div>
   );
 }
