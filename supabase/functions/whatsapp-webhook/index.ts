@@ -138,6 +138,12 @@ async function aiReply(chatId: string, messageId: string) {
     p_output_tokens: result.output_tokens,
   });
   if (recErr) return console.error("wa_ai_record failed", recErr.message);
+  if (result.follow_up_at) {
+    const { error: fuErr } = await admin.rpc("wa_ai_follow_up", {
+      p_chat_id: chatId, p_at: result.follow_up_at, p_note: result.handoff_reason || result.summary || null,
+    });
+    if (fuErr) console.error("wa_ai_follow_up failed", fuErr.message);
+  }
   const send = out as { message_id: string; phone_number_id: string | null; to: string } | null;
   if (!send) return; // nothing to send, or a person took over meanwhile
   const { waId, failure } = send.phone_number_id

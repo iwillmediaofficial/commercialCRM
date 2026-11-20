@@ -171,6 +171,7 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
               <OwnerPin w={w} />
               <FileAttachments w={w} onChanged={onChanged} />
               <WhatsAppSetup w={w} onChanged={onChanged} />
+              <AiAddon w={w} onChanged={onChanged} />
             </div>
           </td>
         </tr>
@@ -259,7 +260,10 @@ function RecordPayment({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">
   });
   const [msg, setMsg] = useState<{ tone: "error" | "success"; text: string } | null>(null);
   const plan = plans.find((p) => p.id === form.plan_id);
-  const listPrice = plan?.[`price_${form.period}` as const];
+  const planPrice = plan?.[`price_${form.period}` as const];
+  const months = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 }[form.period];
+  const addon = w.wa_ai_addon ? Number(w.wa_ai_addon_price) * months : 0;
+  const listPrice = planPrice != null ? Number(planPrice) + addon : null;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -292,7 +296,7 @@ function RecordPayment({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">
             {PERIODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </Select>
         </Field>
-        <Field label="Amount received (₹)" hint={listPrice != null ? `List price ₹${Number(listPrice).toLocaleString("en-IN")}` : undefined}>
+        <Field label="Amount received (₹)" hint={listPrice != null ? `List price ₹${listPrice.toLocaleString("en-IN")}${addon ? ` (includes WhatsApp AI add-on ₹${addon.toLocaleString("en-IN")})` : ""}` : undefined}>
           <Input type="number" min={0} step="0.01" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
         </Field>
         <Field label="Paid by">
@@ -482,6 +486,84 @@ function WhatsAppSetup({ w, onChanged }: { w: Row; onChanged: () => void }) {
       </form>
       <p className="mt-2 text-xs text-slate-500">Phone number ID is on Meta's WhatsApp → API Setup page. Messages to that number then appear in this company's WhatsApp Inbox.</p>
       {error && <div className="mt-3"><Alert>{error}</Alert></div>}
+    </Panel>
+  );
+}
+
+// WhatsApp AI add-on: the assistant answers this company's chats. Billed on
+// renewals (monthly price x months) and shown as its own invoice line.
+function AiAddon({ w, onChanged }: { w: Row; onChanged: () => void }) {
+  const on = w.wa_ai_addon;
+  const [price, setPrice] = useState(String(w.wa_ai_addon_price ?? 999));
+  const [limit, setLimit] = useState("");
+  const [used, setUsed] = useState<{ chats: number; replies: number; input_tokens: number; output_tokens: number } | null>(null);
+  const [aiOn, setAiOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "error" | "success"; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    const month = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).slice(0, 7) + "-01";
+    const [{ data: s }, { data: u }] = await Promise.all([
+      supabase.from("wa_ai_settings").select("enabled, monthly_chat_limit").eq("workspace_id", w.id).maybeSingle(),
+      supabase.from("wa_ai_usage").select("chats, replies, input_tokens, output_tokens").eq("workspace_id", w.id).eq("month", month).maybeSingle(),
+    ]);
+    setLimit(String(s?.monthly_chat_limit ?? 500));
+    setAiOn(!!s?.enabled);
+    setUsed(u);
+  }, [w.id]);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function save(next: boolean) {
+    if (!next && !window.confirm(`Switch off the WhatsApp AI add-on for ${w.name}? Chats the AI is answering go to their team.`)) return;
+    const p = Number(price);
+    const l = Number(limit);
+    if (!Number.isFinite(p) || p < 0) return setMsg({ tone: "error", text: "Enter the monthly price in rupees." });
+    if (!Number.isInteger(l) || l < 0) return setMsg({ tone: "error", text: "Enter the number of AI chats a month." });
+    setBusy(true);
+    setMsg(null);
+    const { error } = await supabase.rpc("admin_set_wa_ai_addon", { p_workspace_id: w.id, p_on: next, p_price: p, p_chat_limit: l });
+    setBusy(false);
+    if (error) return setMsg({ tone: "error", text: error.message });
+    setMsg({ tone: "success", text: next ? (on ? "Saved." : "Add-on switched on. It is added to their next renewal.") : "Add-on switched off." });
+    load();
+    onChanged();
+  }
+
+  return (
+    <Panel title="WhatsApp AI add-on">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <span>
+          Add-on: <span className={on ? "font-semibold text-green-700" : "font-semibold text-slate-600"}>{on ? "On" : "Off"}</span>
+          {on && <span className="text-slate-500"> · AI replies {aiOn ? "on" : "not switched on yet by the company"}</span>}
+        </span>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <Field label="Price a month (₹, incl. GST)">
+          <Input type="number" min={0} step="1" value={price} onChange={(e) => setPrice(e.target.value)} />
+        </Field>
+        <Field label="AI chats a month">
+          <Input type="number" min={0} step="1" value={limit} onChange={(e) => setLimit(e.target.value)} />
+        </Field>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {on ? (
+          <>
+            <Button variant="secondary" disabled={busy} onClick={() => save(true)}>Save</Button>
+            <Button variant="danger" disabled={busy} onClick={() => save(false)}>Switch off</Button>
+          </>
+        ) : (
+          <Button disabled={busy} onClick={() => save(true)}>Switch on</Button>
+        )}
+      </div>
+      {used && (
+        <p className="mt-3 text-xs text-slate-500">
+          This month: {used.chats} AI chats, {used.replies} replies, {Math.round((used.input_tokens + used.output_tokens) / 1000).toLocaleString("en-IN")}k tokens.
+        </p>
+      )}
+      {!w.whatsapp_enabled && <p className="mt-2 text-xs text-slate-500">The WhatsApp Inbox is off for this company, so the assistant has no chats to answer yet.</p>}
+      {msg && <div className="mt-3"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
     </Panel>
   );
 }

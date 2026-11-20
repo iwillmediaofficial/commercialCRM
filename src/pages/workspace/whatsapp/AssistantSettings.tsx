@@ -72,6 +72,7 @@ export default function AssistantSettings() {
   }, [workspace.id, isAdmin]);
 
   if (!isAdmin) return <Alert tone="info">Only the company's owner and admins can change the WhatsApp assistant.</Alert>;
+  if (!workspace.wa_ai_addon) return <AddonLocked slug={workspace.slug} price={Number(workspace.wa_ai_addon_price)} />;
   if (!form) return <Spinner />;
 
   const set = (k: keyof Form, v: string | boolean) => {
@@ -239,6 +240,30 @@ function FromWebsite({ workspaceId, website, setWebsite, onFields }: {
   );
 }
 
+// Without the add-on the assistant can't be set up.
+function AddonLocked({ slug, price }: { slug: string; price: number }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Link to={`/w/${slug}/whatsapp`} className="text-sm text-slate-500 hover:text-slate-700">← WhatsApp</Link>
+        <h1 className="text-xl font-semibold">WhatsApp AI assistant</h1>
+      </div>
+      <Card title="Add the AI assistant">
+        <p className="text-sm text-slate-600">
+          The assistant answers your WhatsApp chats any time of day from what you tell it about your company, asks your questions,
+          saves the customer's details on the lead, and hands the chat to your team when it should.
+        </p>
+        <p className="mt-2 text-sm">
+          It's an add-on: <span className="font-semibold">₹{price.toLocaleString("en-IN")} a month</span> (including GST), with 500 AI chats a month.
+        </p>
+        <p className="mt-2 text-sm text-slate-500">
+          Ask the Super Admin to switch it on. It is then added to your subscription renewals and invoices.
+        </p>
+      </Card>
+    </div>
+  );
+}
+
 function Area({ f, k, label, hint, set, readOnly, rows }: {
   f: Form; k: TextKey; label: string; hint?: string; set: (k: keyof Form, v: string) => void; readOnly: boolean; rows: number;
 }) {
@@ -276,7 +301,13 @@ function TestBox({ workspaceId, saved, dirty }: { workspaceId: string; saved: bo
     });
     setBusy(false);
     if (!data?.ok) return setError(data?.message ?? (await errorText(error, "The assistant didn't answer. Try again.")));
-    const note = data.handoff ? `Hands the chat to your team: ${data.handoff_reason || "asked for a person"}` : undefined;
+    const notes = [
+      data.handoff ? `Hands the chat to your team: ${data.handoff_reason || "asked for a person"}` : "",
+      data.follow_up_at
+        ? `Follow-up on the lead: ${new Date(data.follow_up_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}`
+        : "",
+    ].filter(Boolean);
+    const note = notes.length ? notes.join(" · ") : undefined;
     setTurns([...next, { sender: "ai", body: data.reply || "(no reply)", note }]);
     setLearned({ name: data.customer_name ?? "", answers: data.answers ?? {}, summary: data.summary ?? "" });
   }

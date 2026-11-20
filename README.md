@@ -103,6 +103,18 @@ five key pages and drafts the knowledge fields; the admin reviews and saves. Onl
 public addresses are fetched (no IPs, private or local hosts). Usage counts toward
 the month's AI use.
 
+**Add-on and billing.** The assistant is a paid add-on (`workspaces.wa_ai_addon`,
+default ₹999/month incl. GST, 500 AI chats). The Super Admin switches it on per
+company in Companies > WhatsApp AI add-on (`admin_set_wa_ai_addon`). Without it the
+settings page, test box, Fill from website and AI replies are off. Renewals add the
+add-on price for the period, and the invoice shows it as its own line
+(`invoice.lines`; `subscription_payments.addon_amount`). Switching the add-on or AI
+replies off hands the AI's chats to the team.
+
+**Follow-ups.** When a customer asks to be called or visited at a time, the AI returns
+`follow_up_at` and `wa_ai_follow_up` sets it as the lead's follow-up, unless the team
+already has an earlier one set by hand.
+
 ## Launch checklist
 
 - Supabase > Authentication > Leaked password protection: turn on.

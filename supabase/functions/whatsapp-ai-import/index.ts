@@ -176,6 +176,8 @@ Deno.serve(async (req) => {
   });
   const { data: allowed } = await asUser.rpc("can_admin_write", { ws: input.workspace_id, module: "leads" });
   if (!allowed) return reply(403, { ok: false, message: "Only the company's admins can do this." });
+  const { data: addon } = await asUser.rpc("wa_ai_addon_on", { p_workspace_id: input.workspace_id });
+  if (!addon) return reply(403, { ok: false, message: "This needs the WhatsApp AI add-on. Ask the Super Admin to switch it on." });
 
   // Read the home page, then the key pages it links to.
   let home: { html: string; url: URL } | null = null;

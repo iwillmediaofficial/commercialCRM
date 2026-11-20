@@ -68,7 +68,11 @@ export default function Billing() {
   }, [load]);
 
   const chosen = (available.some(([v]) => v === period) ? period : available[0]?.[0]) as Period | undefined;
-  const price = chosen ? chosenPlan?.[PERIODS.find((p) => p[0] === chosen)![2]] : null;
+  const MONTHS: Record<Period, number> = { monthly: 1, quarterly: 3, half_yearly: 6, yearly: 12 };
+  const addonMonthly = workspace.wa_ai_addon ? Number(workspace.wa_ai_addon_price) : 0;
+  const addonFor = (p: Period) => addonMonthly * MONTHS[p];
+  const planPrice = chosen ? chosenPlan?.[PERIODS.find((p) => p[0] === chosen)![2]] : null;
+  const price = chosen && planPrice != null ? Number(planPrice) + addonFor(chosen) : null;
   const pending = requests.some((r) => r.status === "pending");
 
   async function submit(e: FormEvent) {
@@ -121,6 +125,11 @@ export default function Billing() {
           <StatusBadge status={status} />
           <span className="text-slate-500">Valid until {new Date(workspace.valid_until).toLocaleDateString()}</span>
         </div>
+        {workspace.wa_ai_addon && (
+          <p className="mt-2 text-sm text-slate-600">
+            Add-on: <span className="font-medium">WhatsApp AI assistant</span>, ₹{addonMonthly.toLocaleString("en-IN")} a month (incl. GST). It is included in each renewal.
+          </p>
+        )}
       </Card>
 
       {settings && (settings.upi_id || settings.bank_account_number || settings.upi_qr_path) && (
@@ -174,7 +183,10 @@ export default function Billing() {
             <Field label="Period">
               <Select value={chosen} onChange={(e) => setPeriod(e.target.value as Period)}>
                 {available.map(([v, label, k]) => (
-                  <option key={v} value={v}>{label} · ₹{Number(chosenPlan?.[k]).toLocaleString("en-IN")}</option>
+                  <option key={v} value={v}>
+                    {label} · ₹{(Number(chosenPlan?.[k]) + addonFor(v)).toLocaleString("en-IN")}
+                    {addonMonthly ? ` (plan ₹${Number(chosenPlan?.[k]).toLocaleString("en-IN")} + WhatsApp AI ₹${addonFor(v).toLocaleString("en-IN")})` : ""}
+                  </option>
                 ))}
               </Select>
             </Field>
