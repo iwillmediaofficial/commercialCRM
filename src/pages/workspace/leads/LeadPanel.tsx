@@ -4,7 +4,7 @@ import { supabase } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { nameOf, type Person } from "../../../lib/members";
 import { Alert, Badge, Spinner, Textarea } from "../../../components/ui";
-import { STAGES, STAGE_LABEL, STAGE_TONE, type Stage } from "./leadShared";
+import { STAGES, STAGE_LABEL, STAGE_TONE, formAnswerList, humanize, type Stage } from "./leadShared";
 import { LOST_REASONS, QUICK_PICKS, followUpState, followUpTone, fromLocalInput, telLink, toLocalInput, waLink, whenLabel } from "./followUp";
 import { useContactLog } from "./ContactPrompt";
 import LeadTimeline from "./LeadTimeline";
@@ -170,6 +170,23 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
           </Link>
         </div>
       </div>
+
+      {(formAnswerList(lead.form_answers).length > 0 || lead.campaign_details) && (
+        <section className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Customer's answers</h3>
+          {formAnswerList(lead.form_answers).length > 0 && (
+            <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+              {formAnswerList(lead.form_answers).map(([k, a]) => (
+                <div key={k}>
+                  <dt className="text-xs text-slate-500">{humanize(k)}</dt>
+                  <dd className="break-words font-medium text-slate-800">{a}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {lead.campaign_details && <p className="mt-2 text-xs text-slate-500">{lead.campaign_details}</p>}
+        </section>
+      )}
 
       <section className="space-y-3">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Quick check</h3>

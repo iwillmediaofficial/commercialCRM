@@ -18,6 +18,9 @@ import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, 
 
 type View = "board" | "table";
 
+const PAGE_SIZE = 50;
+const BOARD_STEP = 20;
+
 function byPosition(a: Lead, b: Lead) {
   return a.position - b.position || b.created_at.localeCompare(a.created_at);
 }
@@ -74,19 +77,116 @@ function LeadsPage() {
   // A move to Lost waits here until a reason is picked.
   const [losing, setLosing] = useState<{ lead: Lead; beforeId: string | null; quick: boolean } | null>(null);
 
+  // Search text, settled 300 ms after typing, with the leads whose older remarks match.
+  const [term, setTerm] = useState("");
+  const [remarkHits, setRemarkHits] = useState<string[]>([]);
+  useEffect(() => {
+    const t0 = q.trim();
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      let hits: string[] = [];
+      if (t0.length >= 3) {
+        const { data } = await supabase
+          .from("lead_activities")
+          .select("lead_id")
+          .eq("workspace_id", workspace.id)
+          .in("kind", ["remark", "call", "whatsapp", "meeting"])
+          .ilike("body", `%${t0.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
+          .limit(100);
+        hits = [...new Set((data ?? []).map((r) => r.lead_id))];
+      }
+      if (cancelled) return;
+      setRemarkHits((prev) => (prev.join() === hits.join() ? prev : hits));
+      setTerm(t0);
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [q, workspace.id]);
+
+  // Paging: the list loads one page at a time, the board a few cards per column.
+  const [page, setPage] = useState(0);
+  const [listTotal, setListTotal] = useState(0);
+  const [boardLimit, setBoardLimit] = useState<Record<string, number>>({});
+  const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
+  const [summary, setSummary] = useState({ open: 0, value: 0 });
+  const [loadingMore, setLoadingMore] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPage(0);
+    setBoardLimit({});
+  }, [term, remarkHits, stage, source, assignee, check, view]);
+
+  // All leads matching the search and filters (stage is applied by the caller).
+  const matching = useCallback(() => {
+    const base = () => supabase.from("leads").select("*", { count: "exact" }).eq("workspace_id", workspace.id);
+    const filter = (qb: ReturnType<typeof base>) => {
+      if (source) qb = qb.eq("source", source);
+      if (assignee === "none") qb = qb.is("assigned_to", null);
+      else if (assignee) qb = qb.eq("assigned_to", assignee);
+      if (check) {
+        const [key, want] = check.split("\t");
+        qb = want ? qb.eq(`answers->>${key}`, want) : qb.is(`answers->>${key}`, null);
+      }
+      const safe = term.replace(/[,()*%_\\:"']/g, " ").trim();
+      if (safe) {
+        const like = `%${safe}%`;
+        const ors = ["name", "phone", "email", "company", "last_remark"].map((c) => `${c}.ilike.${like}`);
+        if (remarkHits.length) ors.push(`id.in.(${remarkHits.join(",")})`);
+        qb = qb.or(ors.join(","));
+      }
+      return qb;
+    };
+    return filter(base());
+  }, [workspace.id, source, assignee, check, term, remarkHits]);
+
   const load = useCallback(async () => {
-    const { data, error } = await supabase
+
+    let rows: Lead[] = [];
+    if (view === "table") {
+      let qb = matching();
+      if (stage) qb = qb.eq("stage", stage);
+      const { data, error, count } = await qb.order("created_at", { ascending: false }).range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
+      if (error) setError(error.message);
+      rows = data ?? [];
+      setListTotal(count ?? 0);
+    } else {
+      const res = await Promise.all(
+        STAGES.map((st) =>
+          matching()
+            .eq("stage", st.key)
+            .order("position")
+            .order("created_at", { ascending: false })
+            .range(0, (boardLimit[st.key] ?? BOARD_STEP) - 1),
+        ),
+      );
+      const err = res.find((r) => r.error)?.error;
+      if (err) setError(err.message);
+      rows = res.flatMap((r) => r.data ?? []);
+      setStageCounts(Object.fromEntries(STAGES.map((st, i) => [st.key, res[i].count ?? 0])));
+    }
+    setLeads(rows);
+    setLoadingMore(null);
+
+    // Header numbers: every open lead, but only its value.
+    const { data: open } = await supabase
       .from("leads")
-      .select("*")
+      .select("value")
       .eq("workspace_id", workspace.id)
-      .order("position")
-      .order("created_at", { ascending: false });
-    if (error) setError(error.message);
-    setLeads(data ?? []);
+      .not("stage", "in", "(won,lost)")
+      .not("value", "is", null);
+    const { count: allOpen } = await supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspace.id)
+      .not("stage", "in", "(won,lost)");
+    setSummary({ open: allOpen ?? 0, value: (open ?? []).reduce((sum, l) => sum + Number(l.value ?? 0), 0) });
+
     // Only admins can read forms; staff just see answer keys.
     const { data: f } = await supabase.from("lead_forms").select("id, title, fields").eq("workspace_id", workspace.id);
     setForms(Object.fromEntries((f ?? []).map((x) => [x.id, { title: x.title, fields: parseFields(x.fields) }])));
-  }, [workspace.id]);
+  }, [workspace.id, view, page, boardLimit, stage, matching]);
 
   useEffect(() => {
     load();
@@ -121,45 +221,35 @@ function LeadsPage() {
     }
   }
 
-  // Leads whose older remarks match the search (the latest remark is on the lead itself).
-  const [remarkHits, setRemarkHits] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    const term = q.trim();
-    if (term.length < 3) {
-      setRemarkHits(new Set());
-      return;
-    }
-    let cancelled = false;
-    const t = setTimeout(async () => {
-      const { data } = await supabase
-        .from("lead_activities")
-        .select("lead_id")
-        .eq("workspace_id", workspace.id)
-        .in("kind", ["remark", "call", "whatsapp", "meeting"])
-        .ilike("body", `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`)
-        .limit(500);
-      if (!cancelled) setRemarkHits(new Set((data ?? []).map((r) => r.lead_id)));
-    }, 300);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [q, workspace.id]);
+  const filtered = leads ?? [];
 
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    return (leads ?? []).filter((l) => {
-      if (view === "table" && stage && l.stage !== stage) return false;
-      if (source && l.source !== source) return false;
-      if (assignee === "none" ? l.assigned_to : assignee && l.assigned_to !== assignee) return false;
-      if (check) {
-        const [key, want] = check.split("\t");
-        if ((parseAnswers(l.answers)[key] ?? "") !== want) return false;
+  // Export: every lead matching the filters, not just the page on screen.
+  const [exporting, setExporting] = useState(false);
+  async function exportAll() {
+    setExporting(true);
+    const all: Lead[] = [];
+    for (let from = 0; ; from += 1000) {
+      let qb = matching();
+      if (view === "table" && stage) qb = qb.eq("stage", stage);
+      const { data, error } = await qb.order("created_at", { ascending: false }).range(from, from + 999);
+      if (error) {
+        setError(error.message);
+        break;
       }
-      if (!term) return true;
-      return remarkHits.has(l.id) || [l.name, l.phone, l.email, l.company, l.last_remark].some((x) => x?.toLowerCase().includes(term));
-    });
-  }, [leads, q, stage, source, assignee, check, view, remarkHits]);
+      all.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    setExporting(false);
+    const rows = all;
+    downloadCsv(
+                "leads.csv",
+                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", ...questions.map((x) => x.label), "Next follow-up", "Last contact", "Last remark", "Added"],
+                rows.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
+                  ...questions.map((x) => parseAnswers(l.answers)[x.key] ?? ""),
+                  l.follow_up_at ? new Date(l.follow_up_at).toLocaleString("en-IN") : "", l.last_contacted_at ? new Date(l.last_contacted_at).toLocaleString("en-IN") : "",
+                  l.last_remark, l.created_at.slice(0, 10)]),
+    );
+  }
 
   const sourceOptions = useMemo(() => {
     const extra = (leads ?? []).map((l) => l.source).filter((s) => !SOURCES.includes(s));
@@ -244,8 +334,6 @@ function LeadsPage() {
   }
   if (!leads) return <Spinner />;
 
-  const open = leads.filter((l) => !["won", "lost"].includes(l.stage));
-  const pipelineValue = open.reduce((s, l) => s + Number(l.value ?? 0), 0);
   const draggable = canWrite;
 
   return (
@@ -254,7 +342,7 @@ function LeadsPage() {
         <div>
           <h1 className="text-xl font-semibold">Leads</h1>
           <p className="text-sm text-slate-500">
-            {open.length} open lead{open.length === 1 ? "" : "s"} worth {inr(pipelineValue)}
+            {summary.open} open lead{summary.open === 1 ? "" : "s"} worth {inr(summary.value)}
             {!isAdmin && " · showing leads given to you or added by you"}
           </p>
         </div>
@@ -271,21 +359,14 @@ function LeadsPage() {
               </button>
             ))}
           </div>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              downloadCsv(
-                "leads.csv",
-                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", ...questions.map((x) => x.label), "Next follow-up", "Last contact", "Last remark", "Added"],
-                filtered.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
-                  ...questions.map((x) => parseAnswers(l.answers)[x.key] ?? ""),
-                  l.follow_up_at ? new Date(l.follow_up_at).toLocaleString("en-IN") : "", l.last_contacted_at ? new Date(l.last_contacted_at).toLocaleString("en-IN") : "",
-                  l.last_remark, l.created_at.slice(0, 10)]),
-              )
-            }
-          >
-            Export
+          <Button variant="secondary" onClick={exportAll} disabled={exporting}>
+            {exporting ? "Exporting…" : "Export"}
           </Button>
+          {canWrite && isAdmin && (
+            <Link to={`/w/${workspace.slug}/lead-import`} className="inline-flex items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+              Import
+            </Link>
+          )}
           {canWrite && <Button onClick={() => setEditing("new")}>+ Add lead</Button>}
         </div>
       </div>
@@ -329,6 +410,8 @@ function LeadsPage() {
             {STAGES.map((s) => {
               const cards = filtered.filter((l) => l.stage === s.key).sort(byPosition);
               const total = cards.reduce((sum, l) => sum + Number(l.value ?? 0), 0);
+              const all = stageCounts[s.key] ?? cards.length;
+              const more = all - cards.length;
               return (
                 <section
                   key={s.key}
@@ -345,8 +428,8 @@ function LeadsPage() {
                   onDrop={(e) => draggable && onDrop(e, s.key, null)}
                 >
                   <header className="mb-2 flex items-baseline justify-between px-1">
-                    <span className="text-sm font-semibold">{s.label} <span className="font-normal text-slate-500">{cards.length}</span></span>
-                    {total > 0 && <span className="text-xs text-slate-500">{inr(total)}</span>}
+                    <span className="text-sm font-semibold">{s.label} <span className="font-normal text-slate-500">{all}</span></span>
+                    {total > 0 && more <= 0 && <span className="text-xs text-slate-500">{inr(total)}</span>}
                   </header>
                   <div className="flex min-h-24 flex-1 flex-col gap-2">
                     {cards.map((l) => (
@@ -395,6 +478,19 @@ function LeadsPage() {
                       </article>
                     ))}
                     {!cards.length && <p className="px-1 py-4 text-center text-xs text-slate-400">No leads</p>}
+                    {more > 0 && (
+                      <button
+                        type="button"
+                        disabled={loadingMore === s.key}
+                        onClick={() => {
+                          setLoadingMore(s.key);
+                          setBoardLimit((b) => ({ ...b, [s.key]: (b[s.key] ?? BOARD_STEP) + BOARD_STEP }));
+                        }}
+                        className="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-indigo-700 ring-1 ring-slate-200 hover:bg-white disabled:opacity-60"
+                      >
+                        {loadingMore === s.key ? "Loading…" : `View more (${more} more)`}
+                      </button>
+                    )}
                   </div>
                 </section>
               );
@@ -422,7 +518,7 @@ function LeadsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {[...filtered].sort((a, b) => b.created_at.localeCompare(a.created_at)).map((l) => (
+                  {filtered.map((l) => (
                     <tr key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setPanelId(l.id)}>
                       <td className="px-5 py-2">
                         <div className="font-medium">{l.name}</div>
@@ -479,7 +575,19 @@ function LeadsPage() {
               </table>
             </div>
           ) : (
-            <Empty>{leads.length ? "No leads match these filters." : "No leads yet. Add one, or share a lead form."}</Empty>
+            <Empty>{term || stage || source || assignee || check ? "No leads match these filters." : "No leads yet. Add one, or share a lead form."}</Empty>
+          )}
+          {listTotal > PAGE_SIZE && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-sm">
+              <span className="text-slate-500">
+                Showing {page * PAGE_SIZE + 1}–{Math.min(listTotal, (page + 1) * PAGE_SIZE)} of {listTotal}
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>← Previous</Button>
+                <span className="text-slate-500">Page {page + 1} of {Math.ceil(listTotal / PAGE_SIZE)}</span>
+                <Button variant="secondary" disabled={(page + 1) * PAGE_SIZE >= listTotal} onClick={() => setPage((p) => p + 1)}>Next →</Button>
+              </div>
+            </div>
           )}
         </Card>
       )}

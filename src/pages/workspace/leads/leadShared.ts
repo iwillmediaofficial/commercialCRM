@@ -71,3 +71,19 @@ export function textOn(hex: string) {
 export function safeColor(c: string | null | undefined) {
   return c && /^#[0-9a-f]{6}$/i.test(c.trim()) ? c.trim() : null;
 }
+
+// Meta writes choices like "myself_&_spouse" or "₹5_lakhs": show them as words.
+export function answerText(v: unknown) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  const s = String(v).replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Form answers on a lead as [question, answer] pairs, empty ones left out.
+export function formAnswerList(v: Json | null | undefined): [string, string][] {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return [];
+  return Object.entries(v)
+    .filter(([, a]) => a !== null && a !== "")
+    .map(([k, a]) => [k, answerText(a)]);
+}
