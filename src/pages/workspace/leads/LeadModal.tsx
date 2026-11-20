@@ -5,7 +5,7 @@ import { nameOf, type Person } from "../../../lib/members";
 import { date } from "../../../lib/format";
 import { Alert, Button, Field, Input, Modal, Select, Textarea } from "../../../components/ui";
 import { Attachments } from "../../../components/Files";
-import { SOURCES, STAGES, humanize, type FormField, type Stage } from "./leadShared";
+import { SOURCES, STAGES, answerText, humanize, type FormField, type Stage } from "./leadShared";
 import LeadTimeline, { ago } from "./LeadTimeline";
 import { useContactLog } from "./ContactPrompt";
 import { LOST_REASONS, fromLocalInput, telLink, toLocalInput, waLink } from "./followUp";
@@ -271,17 +271,17 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
           </button>
         )}
 
-        {lead?.form_id !== undefined && lead?.form_id !== null && (
+        {lead && (lead.form_id || answers.length > 0) && (
           <div className="rounded-md bg-slate-50 p-3 ring-1 ring-slate-200">
             <div className="mb-2 text-sm font-medium text-slate-700">
-              Form answers{form ? ` from "${form.title}"` : ""}
+              Form answers{form ? ` from "${form.title}"` : lead.import_id ? " (imported)" : ""}
             </div>
             {answers.length ? (
               <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
                 {answers.map(([k, a]) => (
                   <div key={k}>
                     <dt className="text-xs text-slate-500">{labelFor(k)}</dt>
-                    <dd className="whitespace-pre-wrap break-words">{typeof a === "object" ? JSON.stringify(a) : String(a)}</dd>
+                    <dd className="whitespace-pre-wrap break-words">{answerText(a)}</dd>
                   </div>
                 ))}
               </dl>
