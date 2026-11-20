@@ -27,7 +27,7 @@ export default function WorkspaceLayout() {
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null);
   const [missing, setMissing] = useState(false);
   const [logoPath, setLogoPath] = useState<string | null>(null);
-  const [counts, setCounts] = useState({ newLeads: 0, dueWork: 0, dueFollowUps: 0 });
+  const [counts, setCounts] = useState({ newLeads: 0, dueWork: 0, dueFollowUps: 0, waUnread: 0 });
   const { pathname } = useLocation();
 
   useEffect(() => {
@@ -77,6 +77,7 @@ export default function WorkspaceLayout() {
   // Refreshed whenever you move between pages.
   const hasLeads = ctx?.hasModule("leads");
   const hasWork = ctx?.hasModule("work");
+  const hasWhatsApp = !!(hasLeads && ctx?.workspace.whatsapp_enabled);
   useEffect(() => {
     if (!workspaceId) return;
     const today = new Date().toLocaleDateString("en-CA");
@@ -93,8 +94,14 @@ export default function WorkspaceLayout() {
         ? supabase.from("leads").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId)
             .eq("assigned_to", me).not("stage", "in", "(won,lost)").lte("follow_up_at", endOfToday())
         : null,
-    ]).then(([l, w, f]) => setCounts({ newLeads: l?.count ?? 0, dueWork: w?.count ?? 0, dueFollowUps: f?.count ?? 0 }));
-  }, [workspaceId, hasLeads, hasWork, pathname, me]);
+      // WhatsApp chats with unread messages that this person can see.
+      hasWhatsApp
+        ? supabase.from("wa_chats").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).gt("unread_count", 0)
+        : null,
+    ]).then(([l, w, f, wa]) =>
+      setCounts({ newLeads: l?.count ?? 0, dueWork: w?.count ?? 0, dueFollowUps: f?.count ?? 0, waUnread: wa?.count ?? 0 }),
+    );
+  }, [workspaceId, hasLeads, hasWork, hasWhatsApp, pathname, me]);
 
   if (missing) return <Navigate to="/" replace />;
   if (!ctx) return <Spinner />;
@@ -107,6 +114,7 @@ export default function WorkspaceLayout() {
       label: "Sales",
       items: [
         ctx.hasModule("leads") && { to: "leads", label: "Leads", icon: "leads", badge: counts.newLeads },
+        hasWhatsApp && { to: "whatsapp", label: "WhatsApp", icon: "chat", badge: counts.waUnread },
         ctx.hasModule("leads") && { to: "follow-ups", label: "Follow-ups", icon: "phone", badge: counts.dueFollowUps },
         ctx.hasModule("leads") && admin && { to: "lead-forms", label: "Lead forms", icon: "forms" },
         ctx.hasModule("leads") && admin && { to: "lead-assignment", label: "Lead assignment", icon: "swap" },

@@ -14,7 +14,7 @@ export const STAGES: { key: Stage; label: string; tone: string; bar: string }[] 
 export const STAGE_LABEL = Object.fromEntries(STAGES.map((s) => [s.key, s.label])) as Record<Stage, string>;
 export const STAGE_TONE = Object.fromEntries(STAGES.map((s) => [s.key, s.tone])) as Record<Stage, string>;
 
-export const SOURCES = ["Meta Ads", "Website", "Referral", "Cold Call", "Lead form", "Other"];
+export const SOURCES = ["Meta Ads", "Website", "Referral", "Cold Call", "Lead form", "WhatsApp", "Other"];
 
 // Custom questions on a public lead form, stored in lead_forms.fields.
 // Name, phone and email are always asked and are not part of this list.
