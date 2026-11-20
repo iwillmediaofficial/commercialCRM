@@ -1420,6 +1420,7 @@ export type Database = {
       }
       subscription_payments: {
         Row: {
+          addon_amount: number
           amount: number
           created_at: string
           id: string
@@ -2072,6 +2073,8 @@ export type Database = {
             | null
           updated_at: string
           valid_until: string
+          wa_ai_addon: boolean
+          wa_ai_addon_price: number
           whatsapp_enabled: boolean
         }
         Insert: {
@@ -2094,6 +2097,8 @@ export type Database = {
             | null
           updated_at?: string
           valid_until: string
+          wa_ai_addon?: boolean
+          wa_ai_addon_price?: number
           whatsapp_enabled?: boolean
         }
         Update: {
@@ -2116,6 +2121,8 @@ export type Database = {
             | null
           updated_at?: string
           valid_until?: string
+          wa_ai_addon?: boolean
+          wa_ai_addon_price?: number
           whatsapp_enabled?: boolean
         }
         Relationships: [
@@ -2268,6 +2275,14 @@ export type Database = {
       admin_log_support_view: {
         Args: { p_workspace_id: string }
         Returns: undefined
+      }
+      admin_set_wa_ai_addon: {
+        Args: { p_workspace_id: string; p_on: boolean; p_price?: number; p_chat_limit?: number }
+        Returns: undefined
+      }
+      wa_ai_addon_on: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
       }
       admin_record_payment: {
         Args: {

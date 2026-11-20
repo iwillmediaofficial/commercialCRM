@@ -63,5 +63,6 @@ Deno.serve(async (req) => {
     customer_name: result.customer_name,
     answers: result.answers,
     summary: result.summary,
+    follow_up_at: result.follow_up_at,
   });
 });

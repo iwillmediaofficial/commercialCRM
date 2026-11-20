@@ -16,12 +16,17 @@ type Party = {
   email?: string | null;
   phone?: string | null;
 };
+type InvoiceLine = {
+  description: string; period_from?: string | null; period_to?: string | null; sac?: string | null;
+  amount?: number; taxable?: number;
+};
 type Snapshot = {
   date: string;
   registered: boolean;
   seller: Party;
   buyer: Party;
-  line: { description: string; period_from?: string | null; period_to?: string | null; sac?: string | null };
+  line: InvoiceLine;
+  lines?: InvoiceLine[]; // invoices since the WhatsApp AI add-on; older ones have only `line`
   rate: number;
   taxable: number;
   cgst: number;
@@ -102,6 +107,7 @@ export default function SubscriptionInvoice() {
 
 function InvoiceDoc({ no, inv }: { no: string; inv: Snapshot }) {
   const { seller, buyer, line } = inv;
+  const lines = inv.lines?.length ? inv.lines : [line];
   const half = Number(inv.rate) / 2;
   const interState = Number(inv.igst) > 0;
   const mode = inv.payment_mode ? (MODE_LABEL[inv.payment_mode as PaymentMode] ?? inv.payment_mode) : "";
@@ -156,17 +162,21 @@ function InvoiceDoc({ no, inv }: { no: string; inv: Snapshot }) {
           </tr>
         </thead>
         <tbody>
-          <tr className="border-b border-slate-200 align-top">
-            <td className="px-2 py-2">1</td>
-            <td className="px-2 py-2">
-              {line.description}
-              {line.period_from && (
-                <div className="text-xs text-slate-500">Service period: {date(line.period_from)} to {date(line.period_to)}</div>
-              )}
-            </td>
-            <td className="px-2 py-2">{line.sac}</td>
-            <td className="px-2 py-2 text-right">{inr(inv.registered ? inv.taxable : inv.total)}</td>
-          </tr>
+          {lines.map((l, i) => (
+            <tr key={i} className="border-b border-slate-200 align-top">
+              <td className="px-2 py-2">{i + 1}</td>
+              <td className="px-2 py-2">
+                {l.description}
+                {l.period_from && (
+                  <div className="text-xs text-slate-500">Service period: {date(l.period_from)} to {date(l.period_to)}</div>
+                )}
+              </td>
+              <td className="px-2 py-2">{l.sac}</td>
+              <td className="px-2 py-2 text-right">
+                {inr(lines.length === 1 ? (inv.registered ? inv.taxable : inv.total) : (inv.registered ? l.taxable ?? 0 : l.amount ?? 0))}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
