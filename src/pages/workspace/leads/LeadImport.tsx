@@ -30,11 +30,13 @@ export default function LeadImport() {
   const [existing, setExisting] = useState<{ phones: Set<string>; emails: Set<string> } | null>(null);
   const [rotationCount, setRotationCount] = useState<number | null>(null);
   const [reading, setReading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<{ imported: number; skipped: Skipped[] } | null>(null);
   const [error, setError] = useState("");
   const [batches, setBatches] = useState<Batch[] | null>(null);
   const [undoing, setUndoing] = useState<string | null>(null);
+  const [confirmUndo, setConfirmUndo] = useState<string | null>(null);
   const [notice, setNotice] = useState("");
 
   const loadBatches = useCallback(async () => {
@@ -86,9 +88,17 @@ export default function LeadImport() {
     setError("");
     setResult(null);
     setNotice("");
+    setFileName(file.name);
     setReading(true);
     try {
-      const s = await readFile(file);
+      if (!/\.(xlsx|xls|csv|tsv|txt)$/i.test(file.name)) {
+        throw new Error("Please choose an Excel (.xlsx) or CSV file.");
+      }
+      const s = await Promise.race([
+        readFile(file),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Reading the file took too long. Try saving it as CSV from Excel and import that.")), 45_000)),
+      ]);
       if (s.rows.length > MAX_ROWS) {
         throw new Error(`This file has ${s.rows.length.toLocaleString("en-IN")} leads. One import can take up to ${MAX_ROWS.toLocaleString("en-IN")}, so please split it into smaller files.`);
       }
@@ -123,7 +133,6 @@ export default function LeadImport() {
     if (!hasPhoneOrEmail) return setError("Pick which column has the phone number (or email).");
     if (assign === "person" && !assignee) return setError("Pick the person who should get these leads.");
     if (check.ok.length === 0) return setError("There are no new leads to import in this file.");
-    if (!confirm(`Import ${check.ok.length} new lead${check.ok.length === 1 ? "" : "s"}?`)) return;
 
     // Send every row: the server makes the final duplicate check.
     const send = rows;
@@ -162,7 +171,7 @@ export default function LeadImport() {
   }
 
   async function undo(b: Batch) {
-    if (!confirm(`Remove the leads imported from "${b.file_name}"? Leads someone has already contacted or moved on from New are kept.`)) return;
+    setConfirmUndo(null);
     setUndoing(b.id);
     setError("");
     setNotice("");
@@ -237,11 +246,34 @@ export default function LeadImport() {
 
       {!sheet && !result && (
         <Card title="1. Choose the file">
-          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-4 py-10 text-center hover:border-indigo-400 hover:bg-indigo-50/40">
-            <span className="text-sm font-semibold text-slate-700">{reading ? "Reading the file…" : "Click to pick an Excel (.xlsx) or CSV file"}</span>
-            <span className="text-xs text-slate-500">
-              In Meta Ads Manager or Business Suite, open your lead form and download the leads. Up to {MAX_ROWS.toLocaleString("en-IN")} leads per file.
-            </span>
+          <label
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "copy";
+              if (!dragOver) setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (!reading) pick(e.dataTransfer.files?.[0]);
+            }}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-10 text-center transition ${dragOver ? "border-indigo-500 bg-indigo-50" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40"} ${reading ? "pointer-events-none opacity-80" : ""}`}
+          >
+            {reading ? (
+              <>
+                <span className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" aria-hidden />
+                <span className="text-sm font-semibold text-slate-700">Reading {fileName || "the file"}…</span>
+                <span className="text-xs text-slate-500">Checking the leads and looking for duplicates. This takes a few seconds.</span>
+              </>
+            ) : (
+              <>
+                <span className="text-sm font-semibold text-slate-700">{dragOver ? "Drop the file here" : "Drag the Excel or CSV file here, or click to pick it"}</span>
+                <span className="text-xs text-slate-500">
+                  In Meta Ads Manager or Business Suite, open your lead form and download the leads. .xlsx and .csv files, up to {MAX_ROWS.toLocaleString("en-IN")} leads each.
+                </span>
+              </>
+            )}
             <input
               type="file"
               className="sr-only"
@@ -413,8 +445,16 @@ export default function LeadImport() {
                     <td className="py-2 text-right">
                       {b.undone_at ? (
                         <span className="text-xs text-slate-500">Undone, {b.undone_count ?? 0} removed</span>
+                      ) : b.imported > 0 && confirmUndo === b.id ? (
+                        <div className="flex flex-col items-end gap-1.5">
+                          <span className="text-xs text-slate-600">Remove these leads? Ones already contacted are kept.</span>
+                          <div className="flex gap-2">
+                            <Button variant="secondary" onClick={() => setConfirmUndo(null)}>Cancel</Button>
+                            <Button variant="danger" onClick={() => undo(b)}>Yes, remove</Button>
+                          </div>
+                        </div>
                       ) : b.imported > 0 ? (
-                        <Button variant="danger" onClick={() => undo(b)} disabled={undoing === b.id}>
+                        <Button variant="danger" onClick={() => setConfirmUndo(b.id)} disabled={undoing === b.id}>
                           {undoing === b.id ? "Removing…" : "Undo this import"}
                         </Button>
                       ) : null}
