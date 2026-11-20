@@ -150,7 +150,6 @@ begin
   return null;
 end;
 $$;
-drop trigger if exists wa_ai_settings_switched_off on public.wa_ai_settings;
 create trigger wa_ai_settings_switched_off after update of enabled on public.wa_ai_settings
   for each row execute function private.wa_ai_settings_switched_off();
 
