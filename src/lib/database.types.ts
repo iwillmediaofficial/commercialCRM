@@ -1561,11 +1561,97 @@ export type Database = {
           },
         ]
       }
+      wa_ai_settings: {
+        Row: {
+          about: string | null
+          assistant_name: string | null
+          contact_hours: string | null
+          enabled: boolean
+          faqs: string | null
+          greeting: string | null
+          handoff_words: string
+          monthly_chat_limit: number
+          policies: string | null
+          products: string | null
+          questions: string | null
+          tone: string
+          updated_at: string
+          updated_by: string | null
+          workspace_id: string
+        }
+        Insert: {
+          about?: string | null
+          assistant_name?: string | null
+          contact_hours?: string | null
+          enabled?: boolean
+          faqs?: string | null
+          greeting?: string | null
+          handoff_words?: string
+          monthly_chat_limit?: number
+          policies?: string | null
+          products?: string | null
+          questions?: string | null
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+          workspace_id: string
+        }
+        Update: {
+          about?: string | null
+          assistant_name?: string | null
+          contact_hours?: string | null
+          enabled?: boolean
+          faqs?: string | null
+          greeting?: string | null
+          handoff_words?: string
+          monthly_chat_limit?: number
+          policies?: string | null
+          products?: string | null
+          questions?: string | null
+          tone?: string
+          updated_at?: string
+          updated_by?: string | null
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      wa_ai_usage: {
+        Row: {
+          chats: number
+          input_tokens: number
+          month: string
+          output_tokens: number
+          replies: number
+          workspace_id: string
+        }
+        Insert: {
+          chats?: number
+          input_tokens?: number
+          month: string
+          output_tokens?: number
+          replies?: number
+          workspace_id: string
+        }
+        Update: {
+          chats?: number
+          input_tokens?: number
+          month?: string
+          output_tokens?: number
+          replies?: number
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       wa_chats: {
         Row: {
+          ai_month: string | null
+          ai_replies: number
+          ai_summary: string | null
           contact_name: string | null
           created_at: string
           handler: string
+          handoff_at: string | null
+          handoff_reason: string | null
           id: string
           last_inbound_at: string | null
           last_message_at: string | null
@@ -1578,9 +1664,14 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          ai_month?: string | null
+          ai_replies?: number
+          ai_summary?: string | null
           contact_name?: string | null
           created_at?: string
           handler?: string
+          handoff_at?: string | null
+          handoff_reason?: string | null
           id?: string
           last_inbound_at?: string | null
           last_message_at?: string | null
@@ -1593,9 +1684,14 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          ai_month?: string | null
+          ai_replies?: number
+          ai_summary?: string | null
           contact_name?: string | null
           created_at?: string
           handler?: string
+          handoff_at?: string | null
+          handoff_reason?: string | null
           id?: string
           last_inbound_at?: string | null
           last_message_at?: string | null
@@ -2362,6 +2458,14 @@ export type Database = {
       wa_prepare_send: {
         Args: { p_body: string; p_chat_id: string }
         Returns: Json
+      }
+      wa_ai_test_context: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      wa_set_handler: {
+        Args: { p_chat_id: string; p_handler: string }
+        Returns: undefined
       }
       wa_set_chat_status: {
         Args: { p_chat_id: string; p_status: string }

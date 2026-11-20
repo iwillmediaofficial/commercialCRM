@@ -14,10 +14,11 @@ type Chat = Tables<"wa_chats">;
 type Message = Tables<"wa_messages">;
 type LeadInfo = Pick<Tables<"leads">, "id" | "name" | "phone" | "stage" | "source" | "assigned_to" | "follow_up_at" | "last_remark">;
 
-type Filter = "unread" | "open" | "closed";
+type Filter = "unread" | "open" | "ai" | "closed";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "open", label: "Open" },
   { key: "unread", label: "Unread" },
+  { key: "ai", label: "With AI" },
   { key: "closed", label: "Closed" },
 ];
 const WINDOW_MS = 24 * 3600 * 1000;
@@ -99,6 +100,7 @@ export default function Inbox() {
       if (filter === "unread" && c.unread_count === 0) return false;
       if (filter === "open" && c.status !== "open") return false;
       if (filter === "closed" && c.status !== "closed") return false;
+      if (filter === "ai" && (c.handler !== "ai" || c.status !== "open")) return false;
       if (!words) return true;
       const lead = c.lead_id ? leads[c.lead_id] : null;
       return [c.contact_name, c.wa_id, lead?.name, c.last_message_preview].some((x) => x?.toLowerCase().includes(words));
@@ -106,6 +108,8 @@ export default function Inbox() {
   }, [chats, leads, filter, q]);
 
   const unread = (chats ?? []).filter((c) => c.unread_count > 0).length;
+  // Staff can't read the AI settings, so "the company uses AI" is read from its chats.
+  const aiInUse = (chats ?? []).some((c) => c.handler === "ai" || c.ai_replies > 0);
   const chat = chats?.find((c) => c.id === selected) ?? null;
   const open = (id: string | null) => {
     const next = new URLSearchParams(params);
@@ -123,6 +127,12 @@ export default function Inbox() {
           <h1 className="text-xl font-semibold">WhatsApp</h1>
           <p className="text-sm text-slate-500">Chats with your WhatsApp Business number. Replies go out from that number.</p>
         </div>
+        {isAdmin && (
+          <Link to={`/w/${workspace.slug}/whatsapp/assistant`}
+            className="inline-flex items-center rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50">
+            AI assistant settings
+          </Link>
+        )}
       </div>
 
       {hasNumber === false && (
@@ -168,6 +178,9 @@ export default function Inbox() {
                     </div>
                     <div className="mt-0.5 flex items-center justify-between gap-2">
                       <span className="truncate text-xs text-slate-500">{c.last_message_preview}</span>
+                      {c.handler === "ai" && c.status === "open" && (
+                        <span className="shrink-0 rounded-full bg-violet-100 px-1.5 text-[11px] font-semibold text-violet-700">AI</span>
+                      )}
                       {c.unread_count > 0 && (
                         <span className="shrink-0 rounded-full bg-green-600 px-1.5 text-[11px] font-semibold text-white">{c.unread_count}</span>
                       )}
@@ -184,7 +197,7 @@ export default function Inbox() {
 
         {/* Conversation */}
         {chat ? (
-          <Conversation key={chat.id} chat={chat} canWrite={canWrite} onBack={() => open(null)} people={people} />
+          <Conversation key={chat.id} chat={chat} canWrite={canWrite} aiInUse={aiInUse} onBack={() => open(null)} people={people} />
         ) : (
           <section className="hidden items-center justify-center rounded-xl bg-white p-10 text-sm text-slate-500 shadow-sm ring-1 ring-slate-200/70 lg:flex">
             Pick a chat on the left.
@@ -202,8 +215,8 @@ export default function Inbox() {
   );
 }
 
-function Conversation({ chat, canWrite, onBack, people }: {
-  chat: Chat; canWrite: boolean; onBack: () => void; people: ReturnType<typeof useMembers>;
+function Conversation({ chat, canWrite, aiInUse, onBack, people }: {
+  chat: Chat; canWrite: boolean; aiInUse: boolean; onBack: () => void; people: ReturnType<typeof useMembers>;
 }) {
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [text, setText] = useState("");
@@ -254,6 +267,14 @@ function Conversation({ chat, canWrite, onBack, people }: {
     }
   }
 
+  async function setHandler(handler: "ai" | "human") {
+    setError("");
+    const { error } = await supabase.rpc("wa_set_handler", { p_chat_id: chat.id, p_handler: handler });
+    if (error) setError(error.message);
+  }
+
+  const withAi = chat.handler === "ai";
+
   async function setStatus(status: "open" | "closed") {
     const { error } = await supabase.rpc("wa_set_chat_status", { p_chat_id: chat.id, p_status: status });
     if (error) setError(error.message);
@@ -270,12 +291,30 @@ function Conversation({ chat, canWrite, onBack, people }: {
           </div>
         </div>
         {canWrite && (
-          <Button variant="secondary" onClick={() => setStatus(chat.status === "open" ? "closed" : "open")}>
-            {chat.status === "open" ? "Close chat" : "Reopen"}
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            {withAi ? (
+              <Button variant="secondary" onClick={() => setHandler("human")}>Take over</Button>
+            ) : aiInUse && windowOpen && chat.status === "open" ? (
+              <Button variant="secondary" onClick={() => setHandler("ai")}>Hand back to AI</Button>
+            ) : null}
+            <Button variant="secondary" onClick={() => setStatus(chat.status === "open" ? "closed" : "open")}>
+              {chat.status === "open" ? "Close chat" : "Reopen"}
+            </Button>
+          </div>
         )}
       </div>
 
+      {withAi ? (
+        <div className="border-b border-violet-100 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+          The AI assistant is answering this chat. Sending a reply, or Take over, hands it to you.
+          {chat.ai_summary && <div className="mt-1 text-violet-700/80">Notes: {chat.ai_summary}</div>}
+        </div>
+      ) : chat.handoff_at && chat.handoff_reason && chat.ai_replies > 0 ? (
+        <div className="border-b border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <span className="font-semibold">Handed to the team</span> {time(chat.handoff_at)}: {chat.handoff_reason}
+          {chat.ai_summary && <div className="mt-1 text-amber-700/80">Notes: {chat.ai_summary}</div>}
+        </div>
+      ) : null}
       <div className="flex-1 space-y-2 overflow-y-auto bg-slate-50/60 p-3" style={{ maxHeight: "58vh" }}>
         {!messages && <Spinner />}
         {messages?.map((m) => {

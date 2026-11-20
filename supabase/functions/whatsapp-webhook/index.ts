@@ -8,7 +8,9 @@
 // Secrets (Supabase → Edge Functions → Secrets):
 //   WHATSAPP_VERIFY_TOKEN  any long random text, typed the same in Meta's webhook setup
 //   WHATSAPP_APP_SECRET    Meta app → App settings → Basic → App secret
+//   ANTHROPIC_API_KEY      for AI replies (phase 2), see ../_shared/wa_ai.ts
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { askAssistant, sendWhatsAppText, systemPrompt, toMessages, type AiSettings, type AiTurn } from "../_shared/wa_ai.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -83,6 +85,67 @@ function describe(m: WaMessage): { body: string | null; media: Record<string, un
   }
 }
 
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Customers often send several short messages in a row. Wait a moment, and only
+// the newest message of the burst gets an answer (covering all of them).
+const SETTLE_MS = 4000;
+
+async function aiReply(chatId: string, messageId: string) {
+  await sleep(SETTLE_MS);
+  const { data: latest } = await admin
+    .from("wa_messages")
+    .select("id")
+    .eq("chat_id", chatId)
+    .eq("direction", "in")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latest?.id !== messageId) return;
+
+  const { data: ctx, error } = await admin.rpc("wa_ai_context", { p_chat_id: chatId });
+  if (error) return console.error("wa_ai_context failed", error.message);
+  if (!ctx) return; // AI off for this chat
+  if (ctx.limit_reached) {
+    await admin.rpc("wa_ai_record", {
+      p_chat_id: chatId, p_reply: null, p_handoff: true,
+      p_handoff_reason: "This month's AI chat allowance is used up", p_customer_name: null,
+      p_answers: null, p_summary: null, p_input_tokens: 0, p_output_tokens: 0,
+    });
+    return;
+  }
+
+  const lead = ctx.lead as { name?: string; form_answers?: unknown } | null;
+  const chat = ctx.chat as { contact_name?: string | null; ai_summary?: string | null };
+  const system = systemPrompt(ctx.company as string, ctx.settings as AiSettings, {
+    name: lead?.name && !lead.name.startsWith("+") ? lead.name : chat.contact_name,
+    answers: lead?.form_answers,
+    summary: chat.ai_summary,
+  });
+  const result = await askAssistant(system, toMessages(ctx.messages as AiTurn[]));
+  if (result.error) console.warn("AI reply failed, handing off", chatId, result.error);
+
+  const { data: out, error: recErr } = await admin.rpc("wa_ai_record", {
+    p_chat_id: chatId,
+    p_reply: result.reply || null,
+    p_handoff: result.handoff,
+    p_handoff_reason: result.handoff_reason || null,
+    p_customer_name: result.customer_name || null,
+    p_answers: result.answers,
+    p_summary: result.summary || null,
+    p_input_tokens: result.input_tokens,
+    p_output_tokens: result.output_tokens,
+  });
+  if (recErr) return console.error("wa_ai_record failed", recErr.message);
+  const send = out as { message_id: string; phone_number_id: string | null; to: string } | null;
+  if (!send) return; // nothing to send, or a person took over meanwhile
+  const { waId, failure } = send.phone_number_id
+    ? await sendWhatsAppText(send.phone_number_id, send.to, result.reply)
+    : { waId: null, failure: "This company's WhatsApp number is not active." };
+  await admin.rpc("wa_finish_send", { p_message_id: send.message_id, p_wa_message_id: waId, p_error: failure });
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
@@ -134,6 +197,10 @@ Deno.serve(async (req) => {
         });
         if (error) console.error("wa_receive failed", error.message);
         else if (data && !data.ok) console.warn("wa_receive skipped", data.reason, phoneNumberId);
+        else if (data?.chat_id && data?.message_id) {
+          // Answer after Meta has its 200; the function stays alive for the background job.
+          EdgeRuntime.waitUntil(aiReply(data.chat_id, data.message_id).catch((e) => console.error("aiReply", e)));
+        }
       }
 
       for (const s of value.statuses ?? []) {

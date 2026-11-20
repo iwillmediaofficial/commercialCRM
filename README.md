@@ -82,6 +82,22 @@ company's **WhatsApp** page, matched to a lead (or a new lead with source
 Replies are allowed only within 24 hours of the customer's last message
 (WhatsApp's rule). Photos and files show as a label for now.
 
+### WhatsApp AI assistant
+
+When a company switches it on (WhatsApp → **AI assistant settings**, admins), new
+chats are answered by Claude Haiku 5.5 from what the company wrote there. It asks
+the company's questions, saves the answers and the customer's name on the lead,
+and hands the chat to a person (with a note and a notification) when asked, when
+the customer is ready to buy, or when it doesn't know. Staff can **Take over** or
+**Hand back to AI**; any staff reply takes over. AI replies never count as
+contact for the 1-hour rule. Usage per month is in `wa_ai_usage`; the allowance
+(`wa_ai_settings.monthly_chat_limit`, default 500) can only be changed by the
+Super Admin.
+
+Needs the Edge Function secret `ANTHROPIC_API_KEY`, plus the functions
+`whatsapp-webhook` (updated) and `whatsapp-ai-test` deployed, both sharing
+`supabase/functions/_shared/wa_ai.ts`.
+
 ## Launch checklist
 
 - Supabase > Authentication > Leaked password protection: turn on.
