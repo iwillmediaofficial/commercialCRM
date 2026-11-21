@@ -85,12 +85,12 @@ export function NotificationBell({ workspace }: { workspace: { id: string; slug:
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-40 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-white shadow-lg ring-1 ring-slate-200">
+        <div className="fixed inset-x-3 top-[4.25rem] z-40 overflow-hidden rounded-xl sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-80 bg-white shadow-lg ring-1 ring-slate-200">
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
             <span className="text-sm font-semibold">Notifications</span>
             {unread.length > 0 && <button className="text-xs font-medium text-brand-600 hover:underline" onClick={markAll}>Mark all read</button>}
           </div>
-          <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+          <ul className="max-h-[min(24rem,calc(100dvh-10rem))] divide-y divide-slate-100 overflow-y-auto">
             {notes.length === 0 && <li className="p-4 text-center text-sm text-slate-500">Nothing yet.</li>}
             {notes.map((n) => (
               <li key={n.id}>
