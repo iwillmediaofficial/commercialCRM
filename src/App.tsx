@@ -25,6 +25,7 @@ const LeadForms = lazy(() => import("./pages/workspace/leads/LeadForms"));
 const FollowUps = lazy(() => import("./pages/workspace/leads/FollowUps"));
 const LeadAssignment = lazy(() => import("./pages/workspace/leads/LeadAssignment"));
 const LeadImport = lazy(() => import("./pages/workspace/leads/LeadImport"));
+const LeadLinks = lazy(() => import("./pages/workspace/leads/LeadLinks"));
 const ResponseTimes = lazy(() => import("./pages/workspace/leads/ResponseTimes"));
 const WhatsAppInbox = lazy(() => import("./pages/workspace/whatsapp/Inbox"));
 const WhatsAppAssistant = lazy(() => import("./pages/workspace/whatsapp/AssistantSettings"));
@@ -92,6 +93,7 @@ const router = createBrowserRouter([
           { path: "follow-ups", element: <FollowUps /> },
           { path: "lead-assignment", element: <LeadAssignment /> },
           { path: "lead-import", element: <LeadImport /> },
+          { path: "lead-links", element: <LeadLinks /> },
           { path: "response-times", element: <ResponseTimes /> },
           { path: "lead-forms", element: <LeadForms /> },
           { path: "whatsapp", element: <WhatsAppInbox /> },

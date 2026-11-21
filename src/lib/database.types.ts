@@ -843,6 +843,135 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_link_events: {
+        Row: {
+          email: string | null
+          fields: Json | null
+          id: number
+          lead_id: string | null
+          link_id: string
+          name: string | null
+          phone: string | null
+          reason: string | null
+          received_at: string
+          status: string
+          via: string | null
+          workspace_id: string
+        }
+        Insert: {
+          email?: string | null
+          fields?: Json | null
+          id?: never
+          lead_id?: string | null
+          link_id: string
+          name?: string | null
+          phone?: string | null
+          reason?: string | null
+          received_at?: string
+          status: string
+          via?: string | null
+          workspace_id: string
+        }
+        Update: {
+          email?: string | null
+          fields?: Json | null
+          id?: never
+          lead_id?: string | null
+          link_id?: string
+          name?: string | null
+          phone?: string | null
+          reason?: string | null
+          received_at?: string
+          status?: string
+          via?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_link_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_link_events_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "lead_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_link_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_links: {
+        Row: {
+          added_count: number
+          assign_mode: string
+          assignee: string | null
+          created_at: string
+          created_by: string | null
+          field_map: Json
+          id: string
+          is_active: boolean
+          last_received_at: string | null
+          name: string
+          received_count: number
+          source: string
+          token: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          added_count?: number
+          assign_mode?: string
+          assignee?: string | null
+          created_at?: string
+          created_by?: string | null
+          field_map?: Json
+          id?: string
+          is_active?: boolean
+          last_received_at?: string | null
+          name: string
+          received_count?: number
+          source?: string
+          token?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          added_count?: number
+          assign_mode?: string
+          assignee?: string | null
+          created_at?: string
+          created_by?: string | null
+          field_map?: Json
+          id?: string
+          is_active?: boolean
+          last_received_at?: string | null
+          name?: string
+          received_count?: number
+          source?: string
+          token?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_links_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_imports: {
         Row: {
           id: string
@@ -996,6 +1125,7 @@ export type Database = {
           auto_assigned: boolean
           pass_on_count: number
           import_id: string | null
+          lead_link_id: string | null
         }
         Insert: {
           answers?: Json
@@ -1033,6 +1163,7 @@ export type Database = {
           auto_assigned?: boolean
           pass_on_count?: number
           import_id?: string | null
+          lead_link_id?: string | null
         }
         Update: {
           answers?: Json
@@ -1070,6 +1201,7 @@ export type Database = {
           auto_assigned?: boolean
           pass_on_count?: number
           import_id?: string | null
+          lead_link_id?: string | null
         }
         Relationships: [
           {
@@ -2309,6 +2441,11 @@ export type Database = {
       }
     }
     Functions: {
+      receive_lead_link: {
+        Args: { p_items: Json; p_link_id: string; p_via?: string }
+        Returns: Json
+      }
+      rotate_lead_link_token: { Args: { p_link_id: string }; Returns: string }
       start_lead_import: {
         Args: { p_workspace_id: string; p_file_name: string; p_source: string; p_assign: string; p_assignee: string | null; p_total: number }
         Returns: string

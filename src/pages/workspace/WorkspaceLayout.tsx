@@ -117,6 +117,7 @@ export default function WorkspaceLayout() {
         hasWhatsApp && { to: "whatsapp", label: "WhatsApp", icon: "chat", badge: counts.waUnread },
         ctx.hasModule("leads") && { to: "follow-ups", label: "Follow-ups", icon: "phone", badge: counts.dueFollowUps },
         ctx.hasModule("leads") && admin && { to: "lead-forms", label: "Lead forms", icon: "forms" },
+        ctx.hasModule("leads") && admin && { to: "lead-links", label: "Lead links", icon: "link" },
         ctx.hasModule("leads") && admin && { to: "lead-assignment", label: "Lead assignment", icon: "swap" },
         ctx.hasModule("leads") && admin && { to: "response-times", label: "Response times", icon: "time" },
         { to: "clients", label: "Clients", icon: "clients" },

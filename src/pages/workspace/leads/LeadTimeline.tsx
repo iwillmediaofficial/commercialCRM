@@ -62,13 +62,14 @@ function str(v: unknown) {
 }
 
 // One line for an automatic entry, e.g. "Moved from New lead to Contacted".
-function describe(a: Activity, people: Person[], forms: Record<string, { title: string }>, questions: LeadQuestion[], importFile: string | null) {
+function describe(a: Activity, people: Person[], forms: Record<string, { title: string }>, questions: LeadQuestion[], importFile: string | null, linkName: string | null = null) {
   const d = (a.details && typeof a.details === "object" && !Array.isArray(a.details) ? a.details : {}) as Record<string, unknown>;
   const who = (id: unknown) => nameOf(people, str(id)) || "a former member";
   switch (a.kind) {
     case "created": {
       const form = str(d.form_id) ? forms[str(d.form_id)!] : undefined;
       const auto = d.auto === true && d.assigned_to ? ` · auto-assigned to ${who(d.assigned_to)}` : "";
+      if (linkName !== null) return `Came in through the lead link${linkName ? ` "${linkName}"` : ""}${auto || (d.assigned_to ? ` · given to ${who(d.assigned_to)}` : "")}`;
       if (importFile !== null) return `Imported from ${importFile || "a file"}${d.assigned_to ? ` · given to ${who(d.assigned_to)}` : ""}`;
       if (form) return `Lead came in from the form "${form.title}"${auto}`;
       if (!a.created_by) return `Lead came in from a lead form${auto}`;
@@ -128,12 +129,20 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
   const closed = stage === "won" || stage === "lost";
 
   // Leads from a bulk import: the file's name (admins can read it; staff see "a file").
+  // Leads from a lead link: the link's name (admins only, like the file name).
   const [importFile, setImportFile] = useState<string | null>(null);
+  const [linkName, setLinkName] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     setImportFile(null);
+    setLinkName(null);
     (async () => {
-      const { data } = await supabase.from("leads").select("import_id").eq("id", leadId).maybeSingle();
+      const { data } = await supabase.from("leads").select("import_id, lead_link_id").eq("id", leadId).maybeSingle();
+      if (data?.lead_link_id) {
+        const { data: k } = await supabase.from("lead_links").select("name").eq("id", data.lead_link_id).maybeSingle();
+        if (!cancelled) setLinkName(k?.name ?? "");
+        return;
+      }
       if (!data?.import_id) return;
       const { data: imp } = await supabase.from("lead_imports").select("file_name").eq("id", data.import_id).maybeSingle();
       if (!cancelled) setImportFile(imp?.file_name ?? "");
@@ -388,7 +397,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
                   </div>
                 ) : (
                   <div className="text-xs text-slate-600">
-                    <span className="text-slate-800">{describe(a, people, forms, questions, importFile)}</span>
+                    <span className="text-slate-800">{describe(a, people, forms, questions, importFile, linkName)}</span>
                     <span className="text-slate-400"> · </span>
                     {a.created_by && <span>{author} · </span>}
                     <span title={dateTime(a.created_at)}>{ago(a.created_at)}</span>

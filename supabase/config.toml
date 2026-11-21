@@ -7,3 +7,7 @@ verify_jwt = false
 # files checks the caller's sign-in itself (public lead forms call it signed out).
 [functions.files]
 verify_jwt = false
+
+# lead-link checks the secret key in its address itself (Zapier, Google Sheets and others call it).
+[functions.lead-link]
+verify_jwt = false

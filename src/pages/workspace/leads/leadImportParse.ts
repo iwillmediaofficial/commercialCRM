@@ -109,10 +109,10 @@ function parseDelimited(text: string): string[][] {
 // ---------------------------------------------------------------------------
 // Column matching
 // ---------------------------------------------------------------------------
-const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+export const norm = (h: string) => h.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
 // Meta's technical columns that mean nothing to staff.
-const SKIP = new Set(["id", "lead_id", "ad_id", "adset_id", "campaign_id", "form_id", "is_organic", "lead_status", "inbox_url", "page_id", "retailer_item_id", "partner_name", "vehicle"]);
+const SKIP = new Set(["id", "lead_id", "leadgen_id", "test", "via", "key", "sheet", "ad_id", "adset_id", "campaign_id", "form_id", "is_organic", "lead_status", "inbox_url", "page_id", "retailer_item_id", "partner_name", "vehicle"]);
 const CAMPAIGN = new Set(["campaign_name", "campaign", "adset_name", "ad_set_name", "ad_set", "ad_name", "ad", "form_name", "form", "platform"]);
 
 export function guessRole(header: string): Role {
