@@ -52,33 +52,49 @@ async function copyText(text: string) {
   }
 }
 
-function sheetScript(link: LeadLink) {
-  return `// IWILL CRM: send new rows of this sheet to the lead link "${link.name.replace(/["\\]/g, "")}".
+// Tab names typed on the Set up tab: one per line or comma separated.
+function parseTabs(text: string) {
+  return [...new Set(text.split(/[\n,]/).map((t) => t.trim()).filter(Boolean))].slice(0, 50);
+}
+
+function sheetScript(link: LeadLink, tabs: string[]) {
+  const tabList = tabs.length ? `[\n${tabs.map((t) => `  ${JSON.stringify(t)},`).join("\n")}\n]` : "[]";
+  return `// IWILL CRM: send new rows of this Google Sheet to the lead link "${link.name.replace(/["\\]/g, "")}".
 //
 // 1. Paste all of this into Extensions > Apps Script (replace what is there) and press Save.
 // 2. In the bar at the top pick "setup", press Run, and allow access when Google asks.
-// From then on every new row reaches the CRM within a minute. Row 1 must hold the headers.
-// To also send rows that were already in the sheet, run "sendAllRows" once
+// From then on every new row reaches the CRM within a minute. Row 1 of each tab must hold the headers.
+// Each lead is tagged with the name of the tab it came from.
+// To also send rows that were already there, run "sendAllRows" once
 // (leads already in the CRM are skipped).
 
 const LEAD_LINK = "${linkUrl(link.token)}";
-const SHEET_NAME = ""; // the tab with the leads; leave "" for the first tab
+
+// Which tabs to send. Type the tab names exactly as they show at the bottom of the sheet.
+// Leave the list empty, like [], to send every tab (new tabs are picked up by themselves).
+const TABS = ${tabList};
 
 function setup() {
   ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger("sendNewRows").timeBased().everyMinutes(1).create();
   ScriptApp.newTrigger("sendNewRows").forSpreadsheet(SpreadsheetApp.getActive()).onChange().create();
-  var sheet = leadSheet_();
-  PropertiesService.getDocumentProperties().setProperty("lastRow", String(Math.max(sheet.getLastRow(), 1)));
+  var props = PropertiesService.getDocumentProperties();
+  props.deleteAllProperties();
+  var sheets = leadSheets_();
+  if (!sheets.length) throw new Error("None of the tabs in TABS were found. Check the names: " + TABS.join(", "));
+  // Start after the rows already there, so old leads aren't sent.
+  sheets.forEach(function (sheet) { props.setProperty(key_(sheet), String(Math.max(sheet.getLastRow(), 1))); });
   var res = UrlFetchApp.fetch(LEAD_LINK, {
     method: "post", contentType: "application/json", muteHttpExceptions: true,
-    payload: JSON.stringify({ test: true, via: "google-sheet", sheet: sheet.getName() }),
+    payload: JSON.stringify({ test: true, via: "google-sheet", sheet: sheets.map(function (s) { return s.getName(); }).join(", ") }),
   });
+  Logger.log("Watching tabs: " + sheets.map(function (s) { return s.getName(); }).join(", "));
   Logger.log("Connection test: " + res.getResponseCode() + " " + res.getContentText());
 }
 
 function sendAllRows() {
-  PropertiesService.getDocumentProperties().setProperty("lastRow", "1");
+  var props = PropertiesService.getDocumentProperties();
+  leadSheets_().forEach(function (sheet) { props.setProperty(key_(sheet), "1"); });
   sendNewRows();
 }
 
@@ -86,43 +102,57 @@ function sendNewRows() {
   var lock = LockService.getDocumentLock();
   if (!lock.tryLock(1000)) return;
   try {
-    var props = PropertiesService.getDocumentProperties();
-    var sheet = leadSheet_();
-    var last = sheet.getLastRow();
-    var done = Number(props.getProperty("lastRow") || 1);
-    if (last < done) { props.setProperty("lastRow", String(last)); return; }
-    while (last > done) {
-      var count = Math.min(last - done, 50);
-      var width = sheet.getLastColumn();
-      var headers = sheet.getRange(1, 1, 1, width).getDisplayValues()[0];
-      var rows = sheet.getRange(done + 1, 1, count, width).getDisplayValues();
-      var leads = [];
-      rows.forEach(function (r) {
-        var lead = {};
-        headers.forEach(function (h, i) { if (h && r[i] !== "") lead[h] = r[i]; });
-        if (Object.keys(lead).length) leads.push(lead);
-      });
-      if (leads.length) {
-        var res = UrlFetchApp.fetch(LEAD_LINK, {
-          method: "post", contentType: "application/json", muteHttpExceptions: true,
-          payload: JSON.stringify({ leads: leads, via: "google-sheet" }),
-        });
-        var code = res.getResponseCode();
-        // Not reachable, turned off or too busy: keep the rows and try again next minute.
-        if (code !== 200 && code !== 400 && code !== 413) { Logger.log("Will retry (" + code + "): " + res.getContentText()); return; }
-        if (code !== 200) Logger.log("Skipped rows " + (done + 1) + "-" + (done + count) + ": " + res.getContentText());
-      }
-      done += count;
-      props.setProperty("lastRow", String(done));
-    }
+    leadSheets_().forEach(sendTab_);
   } finally {
     lock.releaseLock();
   }
 }
 
-function leadSheet_() {
+function sendTab_(sheet) {
+  var props = PropertiesService.getDocumentProperties();
+  var last = sheet.getLastRow();
+  var saved = props.getProperty(key_(sheet));
+  // A tab added after setup is new, so all of its rows are new leads.
+  var done = saved === null ? 1 : Number(saved);
+  if (last < done) { props.setProperty(key_(sheet), String(last)); return; }
+  while (last > done) {
+    var count = Math.min(last - done, 50);
+    var width = sheet.getLastColumn();
+    var headers = sheet.getRange(1, 1, 1, width).getDisplayValues()[0];
+    var rows = sheet.getRange(done + 1, 1, count, width).getDisplayValues();
+    var leads = [];
+    rows.forEach(function (r) {
+      var lead = {};
+      headers.forEach(function (h, i) { if (h && r[i] !== "") lead[h] = r[i]; });
+      if (Object.keys(lead).length) { lead["Sheet tab"] = sheet.getName(); leads.push(lead); }
+    });
+    if (leads.length) {
+      var res = UrlFetchApp.fetch(LEAD_LINK, {
+        method: "post", contentType: "application/json", muteHttpExceptions: true,
+        payload: JSON.stringify({ leads: leads, via: "google-sheet" }),
+      });
+      var code = res.getResponseCode();
+      // Not reachable, turned off or too busy: keep the rows and try again next minute.
+      if (code !== 200 && code !== 400 && code !== 413) { Logger.log(sheet.getName() + ": will retry (" + code + "): " + res.getContentText()); return; }
+      if (code !== 200) Logger.log(sheet.getName() + ": skipped rows " + (done + 1) + "-" + (done + count) + ": " + res.getContentText());
+    }
+    done += count;
+    props.setProperty(key_(sheet), String(done));
+  }
+}
+
+function leadSheets_() {
   var book = SpreadsheetApp.getActive();
-  return (SHEET_NAME && book.getSheetByName(SHEET_NAME)) || book.getSheets()[0];
+  if (!TABS.length) return book.getSheets();
+  return TABS.map(function (name) {
+    var s = book.getSheetByName(name);
+    if (!s) Logger.log("Tab not found: " + name);
+    return s;
+  }).filter(function (s) { return s; });
+}
+
+function key_(sheet) {
+  return "lastRow:" + sheet.getSheetId();
 }
 `;
 }
@@ -398,7 +428,22 @@ function LinkDetail({ link, canWrite, assigneeName, onEdit, onChanged, onDeleted
 function SetupGuide({ link, url }: { link: LeadLink; url: string }) {
   const [tool, setTool] = useState<Tool>("sheet");
   const [copied, setCopied] = useState("");
-  const script = useMemo(() => sheetScript(link), [link]);
+  const [tabsText, setTabsText] = useState(() => {
+    try {
+      return localStorage.getItem(`lead-link-tabs:${link.id}`) ?? "";
+    } catch {
+      return "";
+    }
+  });
+  const tabs = useMemo(() => parseTabs(tabsText), [tabsText]);
+  const script = useMemo(() => sheetScript(link, tabs), [link, tabs]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(`lead-link-tabs:${link.id}`, tabsText);
+    } catch {
+      // Remembering the tabs is only a convenience.
+    }
+  }, [link.id, tabsText]);
 
   async function copy(what: string, text: string) {
     if (await copyText(text)) {
@@ -437,15 +482,31 @@ function SetupGuide({ link, url }: { link: LeadLink; url: string }) {
           {step(2, <>Open that sheet and go to <b>Extensions, Apps Script</b>.</>)}
           {step(3, (
             <>
-              Delete what's in the editor, paste this script, and press <b>Save</b>. Your lead link is already in it.
+              <span className="font-medium">Which tabs have the leads?</span> Type the tab names exactly as they show at the bottom of your sheet, one per line. Leave it empty to send every tab, including tabs you add later.
+              <textarea
+                value={tabsText}
+                onChange={(e) => setTabsText(e.target.value)}
+                rows={3}
+                placeholder={"e.g.\nDiwali 2026 offer 10%\nNRI Nov20"}
+                className="mt-2 block w-full max-w-md rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none"
+                aria-label="Tab names"
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                {tabs.length ? `The script will watch ${tabs.length} tab${tabs.length === 1 ? "" : "s"}: ${tabs.join(", ")}.` : "The script will watch every tab."} Each lead shows which tab it came from.
+              </span>
+            </>
+          ))}
+          {step(4, (
+            <>
+              Delete what's in the editor, paste this script, and press <b>Save</b>. Your lead link and tabs are already in it. To change the tabs later, copy the script again, paste it, and run setup again.
               <div className="mt-2 flex gap-2">
                 <Button onClick={() => copy("script", script)}>{copied === "script" ? "Copied" : "Copy script"}</Button>
               </div>
               <pre className="mt-2 max-h-64 overflow-auto rounded-lg bg-slate-900 p-3 text-[11px] leading-relaxed text-slate-100">{script}</pre>
             </>
           ))}
-          {step(4, <>In the bar at the top, pick <b>setup</b> and press <b>Run</b>. Google asks you to allow the script: choose your account, then Advanced, Go to the project, Allow.</>)}
-          {step(5, <>Open the <b>Received</b> tab here. You should see a <b>Test</b> line within a few seconds. From now on every new row reaches the CRM within a minute.</>)}
+          {step(5, <>In the bar at the top, pick <b>setup</b> and press <b>Run</b>. Google asks you to allow the script: choose your account, then Advanced, Go to the project, Allow.</>)}
+          {step(6, <>Open the <b>Received</b> tab here. You should see a <b>Test</b> line within a few seconds. From now on every new row reaches the CRM within a minute.</>)}
           <li className="rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-800">
             Rows already in the sheet are not sent, so old leads don't flood your team. To send them too, run <b>sendAllRows</b> once (leads already in the CRM are skipped), or use Leads, Import.
           </li>
