@@ -1234,6 +1234,7 @@ export type Database = {
           is_read: boolean
           link: string | null
           message: string | null
+          pushed_at: string | null
           title: string
           type: string
           user_id: string
@@ -1245,6 +1246,7 @@ export type Database = {
           is_read?: boolean
           link?: string | null
           message?: string | null
+          pushed_at?: string | null
           title: string
           type?: string
           user_id: string
@@ -1256,6 +1258,7 @@ export type Database = {
           is_read?: boolean
           link?: string | null
           message?: string | null
+          pushed_at?: string | null
           title?: string
           type?: string
           user_id?: string
@@ -1415,6 +1418,39 @@ export type Database = {
           updated_at?: string
           upi_id?: string | null
           upi_qr_path?: string | null
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device: string | null
+          endpoint: string
+          id: string
+          last_ok_at: string | null
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device?: string | null
+          endpoint: string
+          id?: string
+          last_ok_at?: string | null
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device?: string | null
+          endpoint?: string
+          id?: string
+          last_ok_at?: string | null
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2640,6 +2676,10 @@ export type Database = {
       run_recurring_billing: {
         Args: { p_workspace_id: string }
         Returns: number
+      }
+      save_push_subscription: {
+        Args: { p_auth: string; p_device?: string; p_endpoint: string; p_p256dh: string }
+        Returns: undefined
       }
       save_invoice: {
         Args: {

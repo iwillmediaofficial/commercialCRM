@@ -154,3 +154,36 @@ companies, checks 79 rules, and rolls everything back. The last line must be
 
 After a schema change, regenerate `src/lib/database.types.ts` with
 `supabase gen types typescript --project-id zpotoxpaeqeissxycgrz`.
+
+## Installable app (PWA) and phone alerts
+
+The site is an installable app. On Android (Chrome) people tap **Install** on the
+banner or **Install app** in the account menu; on iPhone they use Safari's
+Share > Add to Home Screen (the app shows these steps). Updates reach installed
+apps on the next open, with no store and no review.
+
+- `public/manifest.webmanifest` and `public/icons/` give the name, icon and splash
+  screen (dark background with the icon). Change the name there if the product name changes.
+- `public/sw.js` is the service worker. It caches **nothing**: every page, file
+  and database request goes to the network, so new deploys and data are never
+  stale. It only shows an offline page and handles phone alerts. `_headers`
+  stops `sw.js` and the manifest from being cached.
+- **Phone alerts**: account menu > Phone alerts (or "Turn on" under the bell).
+  Every new bell notification (new or passed-on leads, follow-ups due, the daily
+  follow-up summary and the rest) is also sent to each device that turned alerts on.
+  `supabase/migrations/20261121110000_push_notifications.sql` stores devices and
+  hands new notifications to the `push` Edge Function (verify JWT **off**), which
+  makes its own VAPID keys on first use. Nothing needs setting up. iPhone alerts
+  need iOS 16.4+ and the installed app. Signing out turns alerts off on that device.
+
+### Later: Google Play (Trusted Web Activity)
+
+1. Make a Google Play developer account (one-time $25).
+2. Go to https://www.pwabuilder.com, enter `https://iwillcrm.in`, choose Android,
+   package id e.g. `in.iwillcrm.app`, and download the package (it includes the
+   signing key; keep it safe).
+3. Put the SHA-256 fingerprint it gives into `public/.well-known/assetlinks.json`:
+   `[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"in.iwillcrm.app","sha256_cert_fingerprints":["<fingerprint>"]}}]`
+   (add Play App Signing's fingerprint too once Play shows it), and deploy.
+4. Upload the `.aab` to Play Console. The Play app runs this same site, so every
+   deploy updates it too.

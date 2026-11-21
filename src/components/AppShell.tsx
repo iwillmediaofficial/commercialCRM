@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "react-router";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { Icon, type IconName } from "./icons";
+import { InstallMenuItem, PhoneAlertsMenuItem } from "./InstallApp";
 
 export type NavItem = { to: string; label: string; icon: IconName; end?: boolean; badge?: number };
 export type NavGroup = { label?: string; items: NavItem[] };
@@ -169,6 +170,8 @@ export function UserMenu({ roleLabel }: { roleLabel?: string }) {
             {memberships.length > 1 && (
               <MenuLink to="/" icon="swap" onClick={() => setOpen(false)}>Switch company</MenuLink>
             )}
+            <InstallMenuItem onDone={() => setOpen(false)} />
+            <PhoneAlertsMenuItem />
             <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-slate-700 hover:bg-slate-50" onClick={signOut}>
               <Icon name="logout" className="h-4 w-4 text-slate-400" />
               Sign out
