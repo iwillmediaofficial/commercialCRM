@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { supabase } from "./supabase";
+import { reportError } from "./errors";
 
 // ---------------------------------------------------------------------------
 // Installable app: service worker, the "Install app" prompt, and phone alerts.
@@ -119,8 +120,13 @@ export async function enablePush() {
   const res = await fetch(PUSH_URL);
   const { publicKey } = (await res.json()) as { publicKey?: string };
   if (!publicKey) throw new Error("Couldn't reach the alert service. Try again.");
+  // The installed app may not have its service worker running yet.
   const reg = await registration();
-  await navigator.serviceWorker.ready;
+  const ready = await Promise.race([
+    navigator.serviceWorker.ready.then(() => true),
+    new Promise<boolean>((r) => setTimeout(() => r(false), 15_000)),
+  ]);
+  if (!ready) throw new Error("The app's background helper didn't start. Close the app, open it again and retry.");
   let sub = await reg.pushManager.getSubscription();
   // A subscription made with another key can't receive our alerts; replace it.
   const old = sub?.options.applicationServerKey;
@@ -189,13 +195,29 @@ export function usePush() {
     try {
       await fn();
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      // Shows up in Super Admin > Errors, so failed set-ups can be traced.
+      reportError(new Error(`Phone alerts: ${msg} (permission ${"Notification" in window ? Notification.permission : "n/a"}, ${isStandalone() ? "app" : "browser"})`));
     }
     await refresh();
   }
+  const [testNote, setTestNote] = useState("");
   return {
     state,
     error,
+    testNote,
+    test: async () => {
+      setTestNote("Sending…");
+      try {
+        const sent = await sendTestPush();
+        setTestNote(sent ? "Test alert sent. It should arrive in a few seconds." : "No device is saved yet. Turn alerts off and on again.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setTestNote(msg);
+        reportError(new Error(`Phone alerts test: ${msg}`));
+      }
+    },
     enable: () => run(async () => {
       await enablePush();
       await sendTestPush().catch(() => 0);

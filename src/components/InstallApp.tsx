@@ -95,6 +95,13 @@ export function PhoneAlertsMenuItem() {
         <span className="flex-1">{label}</span>
         {(push.state === "on" || push.state === "off" || push.state === "loading") && <Toggle on={on} />}
       </button>
+      {on && (
+        <button className={itemClass} onClick={push.test}>
+          <span className="h-4 w-4" />
+          <span className="text-brand-700">Send a test alert</span>
+        </button>
+      )}
+      {push.testNote && <p className="px-3 pb-2 text-xs text-slate-500">{push.testNote}</p>}
       {push.state === "blocked" && <p className="px-3 pb-2 text-xs text-slate-500">Allow notifications for this site in the browser's settings, then try again.</p>}
       {push.error && <p className="px-3 pb-2 text-xs text-red-600">{push.error}</p>}
       {ios && <IosInstallSteps onClose={() => setIos(false)} />}
