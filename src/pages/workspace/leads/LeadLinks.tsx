@@ -716,7 +716,8 @@ function LinkModal({ link, workspaceId, people, onClose, onSaved }: {
           <span className="mb-1 block text-sm font-medium text-slate-700">Who gets these leads?</span>
           <div className="space-y-2">
             {(["rotation", "person", "none"] as Assign[]).map((a) => (
-              <label key={a} className="flex items-start gap-2 text-sm">
+              <div key={a}>
+              <label className="flex items-start gap-2 text-sm">
                 <input type="radio" name="assign" className="mt-1" checked={assign === a} onChange={() => setAssign(a)} />
                 <span>
                   <span className="font-medium text-slate-700">
@@ -733,15 +734,16 @@ function LinkModal({ link, workspaceId, people, onClose, onSaved }: {
                   </span>
                 </span>
               </label>
-            ))}
-            {assign === "person" && (
-              <div className="max-w-xs pl-6">
-                <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Person">
-                  <option value="">Pick a person</option>
-                  {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.full_name}</option>)}
-                </Select>
+              {a === "person" && assign === "person" && (
+                <div className="mt-2 max-w-xs pl-6">
+                  <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Person">
+                    <option value="">Pick a person</option>
+                    {people.map((p) => <option key={p.user_id} value={p.user_id}>{p.full_name}</option>)}
+                  </Select>
+                </div>
+              )}
               </div>
-            )}
+            ))}
           </div>
         </div>
         <Field label="Lead source">

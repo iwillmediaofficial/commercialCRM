@@ -25,7 +25,8 @@ create table if not exists public.lead_links (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   name text not null check (length(btrim(name)) between 1 and 80),
-  token text not null unique default private.new_lead_link_token(),
+  -- The guard trigger replaces this with a 40-character key (the default runs as the caller).
+  token text not null unique default replace(gen_random_uuid()::text, '-', ''),
   is_active boolean not null default true,
   source text not null default 'Meta Ads' check (length(btrim(source)) between 1 and 60),
   assign_mode text not null default 'rotation' check (assign_mode in ('rotation', 'person', 'none')),
@@ -56,6 +57,7 @@ begin
       raise exception 'A company can have up to 10 lead links.';
     end if;
     new.created_by := (select auth.uid());
+    new.token := private.new_lead_link_token();
   else
     new.workspace_id := old.workspace_id;
     new.created_by := old.created_by;
