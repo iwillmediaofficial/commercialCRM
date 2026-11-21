@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase, type MemberRole } from "./supabase";
+import { forgetPushOnSignOut } from "./pwa";
 
 export type Membership = {
   workspace_id: string;
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     memberships,
     refresh: () => load(session),
     signOut: async () => {
+      await forgetPushOnSignOut();
       await supabase.auth.signOut();
     },
   };

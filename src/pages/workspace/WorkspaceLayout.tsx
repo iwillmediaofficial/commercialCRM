@@ -6,6 +6,7 @@ import { STATUS_LABEL, type WorkspaceStatus } from "../../lib/status";
 import { WorkspaceContext, type WorkspaceCtx } from "../../lib/workspace";
 import { Alert, Spinner } from "../../components/ui";
 import { TimerBar } from "../../components/TimerBar";
+import { InstallBanner } from "../../components/InstallApp";
 import { NotificationBell } from "../../components/NotificationBell";
 import { StoredImage } from "../../components/Files";
 import { Icon } from "../../components/icons";
@@ -206,6 +207,7 @@ export default function WorkspaceLayout() {
         }
       >
         {subscriptionBanner()}
+        <InstallBanner />
         <Outlet />
       </AppShell>
       </ContactLogProvider>

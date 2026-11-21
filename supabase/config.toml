@@ -11,3 +11,7 @@ verify_jwt = false
 # lead-link checks the secret key in its address itself (Zapier, Google Sheets and others call it).
 [functions.lead-link]
 verify_jwt = false
+
+# push is called by the database (no sign-in) and checks freshness itself.
+[functions.push]
+verify_jwt = false

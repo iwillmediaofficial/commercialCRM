@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { supabase, type Tables } from "../lib/supabase";
 import { useAuth } from "../lib/auth";
 import { useLiveTable, useVisibleInterval } from "../lib/realtime";
+import { PhoneAlertsOffer } from "./InstallApp";
 
 type Note = Tables<"notifications">;
 
@@ -101,6 +102,7 @@ export function NotificationBell({ workspace }: { workspace: { id: string; slug:
               </li>
             ))}
           </ul>
+          <PhoneAlertsOffer />
         </div>
       )}
     </div>
