@@ -25,7 +25,7 @@ const SKIP = new Set([
   "id", "lead_id", "leadgen_id", "ad_id", "adset_id", "campaign_id", "form_id", "page_id", "is_organic",
   "lead_status", "inbox_url", "retailer_item_id", "partner_name", "vehicle", "test", "via", "key", "sheet",
 ]);
-const CAMPAIGN = new Set(["campaign_name", "campaign", "adset_name", "ad_set_name", "ad_set", "ad_name", "ad", "form_name", "form", "platform"]);
+const CAMPAIGN = new Set(["campaign_name", "campaign", "adset_name", "ad_set_name", "ad_set", "ad_name", "ad", "form_name", "form", "platform", "sheet_tab", "tab"]);
 
 export function guessRole(header: string): Role {
   const h = norm(header);
@@ -46,7 +46,7 @@ export function prettyHeader(header: string) {
 
 const CAMPAIGN_LABEL: Record<string, string> = {
   campaign_name: "Campaign", campaign: "Campaign", adset_name: "Ad set", ad_set_name: "Ad set", ad_set: "Ad set",
-  ad_name: "Ad", ad: "Ad", form_name: "Form", form: "Form", platform: "Platform",
+  ad_name: "Ad", ad: "Ad", form_name: "Form", form: "Form", platform: "Platform", sheet_tab: "Sheet tab", tab: "Sheet tab",
 };
 
 function niceDate(v: string) {
