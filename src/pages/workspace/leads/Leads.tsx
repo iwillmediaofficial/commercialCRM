@@ -367,6 +367,11 @@ function LeadsPage() {
               Import
             </Link>
           )}
+          {canWrite && isAdmin && (
+            <Link to={`/w/${workspace.slug}/lead-links`} className="inline-flex items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50" title="Get Meta leads here the moment they come in">
+              Connect
+            </Link>
+          )}
           {canWrite && <Button onClick={() => setEditing("new")}>+ Add lead</Button>}
         </div>
       </div>
