@@ -22,11 +22,15 @@ type Props = {
   hasNext: boolean;
   onSaved: (leadId: string) => void;
   onBack: () => void;
+  // Inside the lead drawer: the drawer shows the name and has Details / Timeline tabs,
+  // so "Full details" switches tab and the history lives on the Timeline tab.
+  inDrawer?: boolean;
+  onFullDetails?: () => void;
 };
 
 const CONTACT_KINDS = ["call", "whatsapp", "meeting"];
 
-export default function LeadPanel({ leadId, questions, people, me, hasNext, onSaved, onBack }: Props) {
+export default function LeadPanel({ leadId, questions, people, me, hasNext, onSaved, onBack, inDrawer, onFullDetails }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const { logContact } = useContactLog();
   const [lead, setLead] = useState<Lead | null>(null);
@@ -133,10 +137,14 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <button type="button" onClick={onBack} className="mb-2 text-sm font-semibold text-indigo-600 lg:hidden">
-            ← Back to list
-          </button>
-          <h2 className="break-words text-xl font-semibold text-slate-900">{lead.name}</h2>
+          {!inDrawer && (
+            <>
+              <button type="button" onClick={onBack} className="mb-2 text-sm font-semibold text-indigo-600 lg:hidden">
+                ← Back to list
+              </button>
+              <h2 className="break-words text-xl font-semibold text-slate-900">{lead.name}</h2>
+            </>
+          )}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500">
             {lead.company && <span>{lead.company}</span>}
             {lead.phone && <span className="tabular-nums">{lead.phone}</span>}
@@ -165,9 +173,15 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
               WhatsApp
             </a>
           )}
-          <Link to={`/w/${workspace.slug}/leads?open=${lead.id}`} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
-            Full details
-          </Link>
+          {onFullDetails ? (
+            <button type="button" onClick={onFullDetails} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
+              Full details
+            </button>
+          ) : (
+            <Link to={`/w/${workspace.slug}/leads?open=${lead.id}&tab=details`} className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50">
+              Full details
+            </Link>
+          )}
         </div>
       </div>
 
@@ -328,6 +342,7 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
         </section>
       )}
 
+      {!inDrawer && (
       <section className="space-y-3 border-t border-slate-100 pt-4">
         <h3 className="text-sm font-semibold text-slate-800">History</h3>
         <LeadTimeline
@@ -342,6 +357,7 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
           onLeadChanged={(p) => setLead((l) => (l ? { ...l, ...p } : l))}
         />
       </section>
+      )}
     </div>
   );
 }

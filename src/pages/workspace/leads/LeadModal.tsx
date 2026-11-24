@@ -21,9 +21,13 @@ type Props = {
   onSaved: (lead: Lead, prevStage: Stage | null) => void;
   onDeleted: (id: string) => void;
   onConvert: (lead: Lead) => void;
+  // Inside the lead drawer: no popup frame and no tab strip of its own; the drawer's tabs drive `tab`.
+  bare?: boolean;
+  tab?: "details" | "timeline";
+  onTabChange?: (tab: "details" | "timeline") => void;
 };
 
-export default function LeadModal({ lead, people, me, formFields, onClose, onSaved, onDeleted, onConvert }: Props) {
+export default function LeadModal({ lead, people, me, formFields, onClose, onSaved, onDeleted, onConvert, bare, tab: tabProp, onTabChange }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const [v, setV] = useState({
     name: lead?.name ?? "",
@@ -40,7 +44,9 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
     lost_other: lead?.lost_reason && !LOST_REASONS.includes(lead.lost_reason) ? lead.lost_reason : "",
     first_remark: "",
   });
-  const [tab, setTab] = useState<"details" | "timeline">("details");
+  const [ownTab, setOwnTab] = useState<"details" | "timeline">("details");
+  const tab = tabProp ?? ownTab;
+  const setTab = (t: "details" | "timeline") => (onTabChange ? onTabChange(t) : setOwnTab(t));
   const { logContact } = useContactLog();
   // Values the timeline changed (a call can move the lead on, or set the next follow-up).
   const [live, setLive] = useState<Partial<Lead>>({});
@@ -127,8 +133,8 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
   const form = lead?.form_id ? formFields[lead.form_id] : undefined;
   const labelFor = (k: string) => form?.fields.find((f) => f.key === k)?.label ?? humanize(k);
 
-  return (
-    <Modal title={lead ? (readOnly ? lead.name : `Lead: ${lead.name}`) : "Add lead"} onClose={onClose} wide>
+  const body = (
+    <>
       {lead && (tel || wa) && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {tel && (
@@ -160,7 +166,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
           <span className="text-xs text-slate-500">Tapping these logs the contact. You'll be asked how it went.</span>
         </div>
       )}
-      {lead && (
+      {lead && !bare && (
         <div className="mb-4 flex gap-1 border-b border-slate-200" role="tablist">
           {([["details", "Details"], ["timeline", "Timeline"]] as const).map(([k, label]) => (
             <button
@@ -324,6 +330,13 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
         </div>
       </form>
       )}
+    </>
+  );
+
+  if (bare) return body;
+  return (
+    <Modal title={lead ? (readOnly ? lead.name : `Lead: ${lead.name}`) : "Add lead"} onClose={onClose} wide>
+      {body}
     </Modal>
   );
 }
