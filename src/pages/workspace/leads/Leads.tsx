@@ -16,6 +16,8 @@ import { ago } from "./LeadTimeline";
 import { lockTimeLabel, useLeadLock } from "./leadLock";
 import { SOURCES, STAGES, STAGE_LABEL, STAGE_TONE, parseFields, type FormField, type Stage } from "./leadShared";
 
+type LeadTab = "followup" | "details" | "timeline";
+
 type View = "board" | "table";
 
 const PAGE_SIZE = 50;
@@ -68,7 +70,8 @@ function LeadsPage() {
   const [source, setSource] = useState("");
   const [assignee, setAssignee] = useState("");
   const [check, setCheck] = useState(""); // "<question key>\t<answer>", or "<key>\t" for unanswered
-  const [panelId, setPanelId] = useState<string | null>(null);
+  // One lead view for Board, List, search and alerts: a side drawer with Follow up / Details / Timeline tabs.
+  const [opened, setOpened] = useState<{ id: string; tab: LeadTab } | null>(null);
   const questions = useLeadQuestions(workspace.id);
   const [editing, setEditing] = useState<Lead | "new" | null>(null);
   const [converting, setConverting] = useState<Lead | null>(null);
@@ -196,21 +199,20 @@ function LeadsPage() {
 
   // Opening a lead from a notification or search (?open=<lead id>), or a new one (?new=1).
   const openId = params.get("open");
+  const openTab = params.get("tab");
   const wantsNew = params.get("new") === "1";
   useEffect(() => {
     if ((!openId && !wantsNew) || !leads) return;
     const l = openId ? leads.find((x) => x.id === openId) : null;
-    if (l) {
-      setPanelId(null);
-      setEditing(l);
-    }
+    if (l) setOpened({ id: l.id, tab: openTab === "details" || openTab === "timeline" ? openTab : "followup" });
     else if (wantsNew && canWrite) setEditing("new");
     setParams((p) => {
       p.delete("open");
+      p.delete("tab");
       p.delete("new");
       return p;
     }, { replace: true });
-  }, [openId, wantsNew, leads, canWrite, setParams]);
+  }, [openId, openTab, wantsNew, leads, canWrite, setParams]);
 
   function switchView(v: View) {
     setView(v);
@@ -448,7 +450,7 @@ function LeadsPage() {
                         }}
                         onDragOver={(e) => draggable && dragId && e.preventDefault()}
                         onDrop={(e) => draggable && onDrop(e, s.key, l.id)}
-                        onClick={() => setEditing(l)}
+                        onClick={() => setOpened({ id: l.id, tab: "followup" })}
                         className={`cursor-pointer rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300 ${dragId === l.id ? "opacity-40" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -524,7 +526,7 @@ function LeadsPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((l) => (
-                    <tr key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setPanelId(l.id)}>
+                    <tr key={l.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpened({ id: l.id, tab: "followup" })}>
                       <td className="px-5 py-2">
                         <div className="font-medium">{l.name}</div>
                         {l.company && <div className="text-xs text-slate-500">{l.company}</div>}
@@ -597,22 +599,71 @@ function LeadsPage() {
         </Card>
       )}
 
-      {panelId && (
-        <Drawer title="Follow up" onClose={() => setPanelId(null)}>
-          <LeadPanel
-            leadId={panelId}
-            questions={questions}
-            people={people}
-            me={me}
-            hasNext={false}
-            onSaved={() => {
-              setPanelId(null);
-              load();
-            }}
-            onBack={() => setPanelId(null)}
-          />
-        </Drawer>
-      )}
+      {opened && (() => {
+        const lead = leads?.find((x) => x.id === opened.id) ?? null;
+        const close = () => setOpened(null);
+        const setTab = (t: LeadTab) => setOpened((o) => (o ? { ...o, tab: t } : o));
+        return (
+          <Drawer title={lead?.name ?? "Lead"} onClose={close}>
+            <div className="mb-4 flex gap-1 border-b border-slate-200" role="tablist">
+              {([["followup", "Follow up"], ["details", "Details"], ["timeline", "Timeline"]] as const).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={opened.tab === k}
+                  onClick={() => setTab(k)}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${opened.tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {opened.tab === "followup" ? (
+              <LeadPanel
+                leadId={opened.id}
+                questions={questions}
+                people={people}
+                me={me}
+                hasNext={false}
+                inDrawer
+                onFullDetails={() => setTab("details")}
+                onSaved={() => {
+                  close();
+                  load();
+                }}
+                onBack={close}
+              />
+            ) : lead ? (
+              <LeadModal
+                bare
+                tab={opened.tab}
+                onTabChange={setTab}
+                lead={lead}
+                people={people}
+                me={me}
+                formFields={forms}
+                onClose={close}
+                onSaved={(saved, prevStage) => {
+                  close();
+                  setLeads((ls) => (ls ?? []).map((l) => (l.id === saved.id ? saved : l)));
+                  if (saved.stage === "won" && prevStage !== "won" && !saved.converted_client_id) setConverting(saved);
+                }}
+                onDeleted={(id) => {
+                  close();
+                  setLeads((ls) => (ls ?? []).filter((l) => l.id !== id));
+                }}
+                onConvert={(l) => {
+                  close();
+                  setConverting(l);
+                }}
+              />
+            ) : (
+              <Spinner />
+            )}
+          </Drawer>
+        );
+      })()}
 
       {editing && (
         <LeadModal
