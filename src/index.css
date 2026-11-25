@@ -54,3 +54,47 @@
   scrollbar-width: thin;
   scrollbar-color: rgb(148 163 184 / 0.35) transparent;
 }
+
+/* ---------- Logo loader (components/Loader.tsx) ---------- */
+.lm .lm-fr,
+.lm .lm-ck,
+.lm .lm-trk {
+  fill: none;
+  stroke: var(--color-brand-500);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lm .lm-fr,
+.lm .lm-trk { stroke-width: 10.5; }
+.lm .lm-ck { stroke-width: 10; }
+.lm .lm-trk { opacity: 0.22; }
+.lm .lm-br { fill: var(--color-navy); }
+.lm-onDark .lm-br { fill: #fff; }
+.lm-white .lm-fr,
+.lm-white .lm-ck,
+.lm-white .lm-trk { stroke: #fff; }
+.lm-white .lm-trk { opacity: 0.35; }
+.lm-white .lm-br { fill: #fff; }
+
+.lm-draw .lm-fr { stroke-dasharray: 100; animation: lm-draw-fr 2.4s cubic-bezier(0.6, 0, 0.3, 1) infinite; }
+.lm-draw .lm-ck { stroke-dasharray: 100; animation: lm-draw-ck 2.4s cubic-bezier(0.6, 0, 0.3, 1) infinite; }
+.lm-draw .lm-br { transform-box: fill-box; transform-origin: 50% 100%; animation: lm-draw-br 2.4s ease-out infinite; }
+.lm-draw .lm-b2 { animation-delay: 0.08s; }
+.lm-draw .lm-b3 { animation-delay: 0.16s; }
+@keyframes lm-draw-fr { 0% { stroke-dashoffset: 100; opacity: 1; } 30%, 80% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes lm-draw-ck { 0%, 30% { stroke-dashoffset: 100; opacity: 1; } 50%, 80% { stroke-dashoffset: 0; opacity: 1; } 95%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+@keyframes lm-draw-br { 0%, 45% { transform: scaleY(0); opacity: 1; } 60%, 80% { transform: scaleY(1); opacity: 1; } 95%, 100% { transform: scaleY(1); opacity: 0; } }
+
+.lm-bars .lm-br { transform-box: fill-box; transform-origin: 50% 100%; animation: lm-bars 1.2s ease-in-out infinite; }
+.lm-bars .lm-b2 { animation-delay: 0.15s; }
+.lm-bars .lm-b3 { animation-delay: 0.3s; }
+@keyframes lm-bars { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+.lm-orbit .lm-fr { stroke-dasharray: 30 70; animation: lm-orbit 1.1s linear infinite; }
+@keyframes lm-orbit { to { stroke-dashoffset: -100; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm *,
+  .lm { animation: none !important; transform: none !important; opacity: 1; stroke-dashoffset: 0 !important; }
+  .lm-orbit .lm-fr { stroke-dasharray: none; }
+}
