@@ -15,9 +15,10 @@
     <meta name="apple-mobile-web-app-title" content="IWILLCRM" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <style>
-      /* First-load screen: shown until the app replaces #root. Same art and
+      /* First-load screen: covers the page until the app has drawn its first real
+         screen (main.tsx removes it once no loader is showing). Same art and
          timing as the "draw" logo loader in src/components/Loader.tsx. */
-      #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f4f7f8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:0;animation:boot-in .3s ease .15s forwards}
+      #boot{position:fixed;inset:0;z-index:200;transition:opacity .25s ease;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f4f7f8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:0;animation:boot-in .3s ease .15s forwards}
       #boot svg{width:80px;height:80px}
       #boot .w{font-weight:800;font-size:26px;line-height:1;color:#0b1b2a;letter-spacing:.01em}
       #boot .w b{color:#018f81}
@@ -28,6 +29,8 @@
       #boot rect{fill:#0b1b2a;transform-box:fill-box;transform-origin:50% 100%;animation:boot-b 2.4s ease-out infinite}
       #boot .b2{animation-delay:.08s}#boot .b3{animation-delay:.16s}
       @keyframes boot-in{to{opacity:1}}
+      #boot.gone{animation:boot-out .25s ease forwards;pointer-events:none}
+      @keyframes boot-out{from{opacity:1}to{opacity:0}}
       @keyframes boot-f{0%{stroke-dashoffset:100;opacity:1}30%,80%{stroke-dashoffset:0;opacity:1}95%,100%{stroke-dashoffset:0;opacity:0}}
       @keyframes boot-c{0%,30%{stroke-dashoffset:100;opacity:1}50%,80%{stroke-dashoffset:0;opacity:1}95%,100%{stroke-dashoffset:0;opacity:0}}
       @keyframes boot-b{0%,45%{transform:scaleY(0);opacity:1}60%,80%{transform:scaleY(1);opacity:1}95%,100%{transform:scaleY(1);opacity:0}}
@@ -35,7 +38,8 @@
     </style>
   </head>
   <body class="bg-page text-slate-900 antialiased">
-    <div id="root"><div id="boot" role="status">
+    <div id="root"></div>
+    <div id="boot" role="status">
       <svg viewBox="-4 -4 108 108" aria-hidden="true">
         <path class="f" pathLength="100" d="M57 23H21A16 16 0 0 0 5 39V79A16 16 0 0 0 21 95H64A16 16 0 0 0 80 79V31"/>
         <path class="c" pathLength="100" d="M26 44 39 57 88 4"/>
@@ -45,7 +49,7 @@
       </svg>
       <div class="w">IWILL<b>CRM</b></div>
       <div class="s">Loading…</div>
-    </div></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

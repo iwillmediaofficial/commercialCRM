@@ -93,6 +93,11 @@
 .lm-orbit .lm-fr { stroke-dasharray: 30 70; animation: lm-orbit 1.1s linear infinite; }
 @keyframes lm-orbit { to { stroke-dashoffset: -100; } }
 
+/* Fades in slowly at first, so a loader that only exists for a few frames
+   stays almost invisible instead of blinking. */
+.lm-fade-in { animation: lm-fade-in 0.4s ease-in both; }
+@keyframes lm-fade-in { 0% { opacity: 0; } 40% { opacity: 0.15; } 100% { opacity: 1; } }
+
 @media (prefers-reduced-motion: reduce) {
   .lm *,
   .lm { animation: none !important; transform: none !important; opacity: 1; stroke-dashoffset: 0 !important; }

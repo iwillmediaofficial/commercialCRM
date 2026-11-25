@@ -95,17 +95,18 @@ export function Alert({ tone = "error", children }: { tone?: "error" | "success"
   return <div className={`rounded-lg px-3.5 py-2.5 text-sm ring-1 ${styles}`}>{children}</div>;
 }
 
-// Page, list and panel loading. Shows nothing for the first 200 ms so quick
-// loads don't flash.
+// Page, list and panel loading. Shows nothing for the first 300 ms, then
+// fades in, so a load that ends just after the delay can't flash the loader.
+// data-loading also keeps the first-load screen up (see main.tsx).
 export function Spinner() {
-  const show = useDelayed();
+  const show = useDelayed(300);
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center gap-3 p-10 text-sm text-slate-500" role="status" aria-live="polite">
+    <div className="flex min-h-40 flex-col items-center justify-center gap-3 p-10 text-sm text-slate-500" role="status" aria-live="polite" data-loading>
       {show && (
-        <>
+        <div className="lm-fade-in flex flex-col items-center gap-3">
           <LogoLoader variant="bars" className="h-10 w-10" />
           Loading…
-        </>
+        </div>
       )}
     </div>
   );
