@@ -1,6 +1,7 @@
+import { LogoLoader, useDelayed } from "./Loader";
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
-export function Button({ className = "", variant = "primary", ...props }:
+export function Button({ className = "", variant = "primary", children, ...props }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" }) {
   const styles = {
     primary: "bg-brand-gradient text-white shadow-brand hover:brightness-110",
@@ -11,8 +12,19 @@ export function Button({ className = "", variant = "primary", ...props }:
     <button
       className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold transition disabled:pointer-events-none disabled:opacity-50 ${styles} ${className}`}
       {...props}
-    />
+    >
+      {busyLabel(children, props.disabled) && (
+        <LogoLoader variant="orbit" tone={variant === "primary" ? "white" : "brand"} className="-ml-0.5 h-4 w-4" />
+      )}
+      {children}
+    </button>
   );
+}
+
+// A disabled button whose text ends in "…" ("Saving…", "Signing in…") is busy:
+// it gets the small orbit loader in front of the text.
+function busyLabel(children: ReactNode, disabled?: boolean) {
+  return !!disabled && typeof children === "string" && children.endsWith("…");
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -83,11 +95,20 @@ export function Alert({ tone = "error", children }: { tone?: "error" | "success"
   return <div className={`rounded-lg px-3.5 py-2.5 text-sm ring-1 ${styles}`}>{children}</div>;
 }
 
+// Page, list and panel loading. Shows nothing for the first 200 ms so quick
+// loads don't flash.
 export function Spinner() {
-  return <div className="flex items-center justify-center gap-2 p-10 text-sm text-slate-500">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" aria-hidden />
-      Loading…
-    </div>;
+  const show = useDelayed();
+  return (
+    <div className="flex min-h-40 flex-col items-center justify-center gap-3 p-10 text-sm text-slate-500" role="status" aria-live="polite">
+      {show && (
+        <>
+          <LogoLoader variant="bars" className="h-10 w-10" />
+          Loading…
+        </>
+      )}
+    </div>
+  );
 }
 
 export function PinBox({ pin, expires }: { pin: string; expires?: string }) {

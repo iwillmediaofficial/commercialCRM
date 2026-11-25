@@ -12,11 +12,40 @@
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Agency CRM" />
+    <meta name="apple-mobile-web-app-title" content="IWILLCRM" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <style>
+      /* First-load screen: shown until the app replaces #root. Same art and
+         timing as the "draw" logo loader in src/components/Loader.tsx. */
+      #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f4f7f8;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;opacity:0;animation:boot-in .3s ease .15s forwards}
+      #boot svg{width:80px;height:80px}
+      #boot .w{font-weight:800;font-size:26px;line-height:1;color:#0b1b2a;letter-spacing:.01em}
+      #boot .w b{color:#018f81}
+      #boot .s{font-size:13px;color:#56687a}
+      #boot .f,#boot .c{fill:none;stroke:#018f81;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:100}
+      #boot .f{stroke-width:10.5;animation:boot-f 2.4s cubic-bezier(.6,0,.3,1) infinite}
+      #boot .c{stroke-width:10;animation:boot-c 2.4s cubic-bezier(.6,0,.3,1) infinite}
+      #boot rect{fill:#0b1b2a;transform-box:fill-box;transform-origin:50% 100%;animation:boot-b 2.4s ease-out infinite}
+      #boot .b2{animation-delay:.08s}#boot .b3{animation-delay:.16s}
+      @keyframes boot-in{to{opacity:1}}
+      @keyframes boot-f{0%{stroke-dashoffset:100;opacity:1}30%,80%{stroke-dashoffset:0;opacity:1}95%,100%{stroke-dashoffset:0;opacity:0}}
+      @keyframes boot-c{0%,30%{stroke-dashoffset:100;opacity:1}50%,80%{stroke-dashoffset:0;opacity:1}95%,100%{stroke-dashoffset:0;opacity:0}}
+      @keyframes boot-b{0%,45%{transform:scaleY(0);opacity:1}60%,80%{transform:scaleY(1);opacity:1}95%,100%{transform:scaleY(1);opacity:0}}
+      @media (prefers-reduced-motion:reduce){#boot *{animation:none!important;stroke-dashoffset:0!important;opacity:1!important;transform:none!important}}
+    </style>
   </head>
   <body class="bg-page text-slate-900 antialiased">
-    <div id="root"></div>
+    <div id="root"><div id="boot" role="status">
+      <svg viewBox="-4 -4 108 108" aria-hidden="true">
+        <path class="f" pathLength="100" d="M57 23H21A16 16 0 0 0 5 39V79A16 16 0 0 0 21 95H64A16 16 0 0 0 80 79V31"/>
+        <path class="c" pathLength="100" d="M26 44 39 57 88 4"/>
+        <rect x="21" y="69" width="13.5" height="15" rx="2.5"/>
+        <rect class="b2" x="39.5" y="61" width="13" height="23" rx="2.5"/>
+        <rect class="b3" x="56.5" y="47" width="14.5" height="37" rx="2.5"/>
+      </svg>
+      <div class="w">IWILL<b>CRM</b></div>
+      <div class="s">Loading…</div>
+    </div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -7,6 +7,7 @@ import { nameOf, useMembers } from "../../../lib/members";
 import { downloadCsv } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Empty, Select, Spinner } from "../../../components/ui";
 import { SOURCES } from "./leadShared";
+import { LogoLoader } from "../../../components/Loader";
 import { MAX_ROWS, ROLES, buildRows, checkRows, guessRole, phoneKey, readFile, type Role, type Sheet } from "./leadImportParse";
 
 type Batch = Tables<"lead_imports">;
@@ -262,7 +263,7 @@ export default function LeadImport() {
           >
             {reading ? (
               <>
-                <span className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" aria-hidden />
+                <LogoLoader variant="bars" className="h-10 w-10" />
                 <span className="text-sm font-semibold text-slate-700">Reading {fileName || "the file"}…</span>
                 <span className="text-xs text-slate-500">Checking the leads and looking for duplicates. This takes a few seconds.</span>
               </>
