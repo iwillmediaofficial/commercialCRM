@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { Session } from "@supabase/supabase-js";
 import { supabase, type MemberRole } from "./supabase";
 import { forgetPushOnSignOut } from "./pwa";
+import { LogoLoader } from "../components/Loader";
 
 export type Membership = {
   workspace_id: string;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const loadedUser = useRef<string | null>(null);
@@ -69,11 +71,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     memberships,
     refresh: () => load(session),
     signOut: async () => {
-      await forgetPushOnSignOut();
-      await supabase.auth.signOut();
+      if (signingOut) return;
+      setSigningOut(true);
+      try {
+        // Turning off phone alerts talks to the browser and the server; never
+        // let it hold sign-out up for more than a few seconds.
+        await Promise.race([forgetPushOnSignOut(), new Promise((r) => setTimeout(r, 3000))]);
+        await supabase.auth.signOut();
+      } finally {
+        setSigningOut(false);
+      }
     },
   };
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {signingOut && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-3 bg-page/90 text-sm text-slate-600 backdrop-blur-sm" role="status" aria-live="polite">
+          <LogoLoader variant="orbit" className="h-10 w-10" />
+          Signing you out…
+        </div>
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

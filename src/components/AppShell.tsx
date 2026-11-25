@@ -172,7 +172,7 @@ export function UserMenu({ roleLabel }: { roleLabel?: string }) {
             )}
             <InstallMenuItem onDone={() => setOpen(false)} />
             <PhoneAlertsMenuItem />
-            <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-slate-700 hover:bg-slate-50" onClick={signOut}>
+            <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-slate-700 hover:bg-slate-50" onClick={() => { setOpen(false); void signOut(); }}>
               <Icon name="logout" className="h-4 w-4 text-slate-400" />
               Sign out
             </button>
