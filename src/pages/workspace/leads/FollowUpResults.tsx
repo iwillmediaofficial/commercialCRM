@@ -204,7 +204,7 @@ export default function FollowUpResults({ leads, activities, since, rangeLabel, 
                                   type="button"
                                   disabled={unlocking === r.id}
                                   onClick={() => unlock(r.id)}
-                                  className="text-xs font-medium text-indigo-600 hover:underline disabled:opacity-50"
+                                  className="text-xs font-medium text-brand-600 hover:underline disabled:opacity-50"
                                 >
                                   {unlocking === r.id ? "Unlocking…" : "Unlock for today"}
                                 </button>

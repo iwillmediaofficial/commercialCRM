@@ -383,7 +383,7 @@ export default function ResponseTimes() {
               <ul className="-mx-5 divide-y divide-slate-100">
                 {report.stillWaiting.slice(0, 15).map(({ lead, min }) => (
                   <li key={lead.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-sm">
-                    <Link to={leadLink(lead.id)} className="font-medium text-slate-900 hover:text-indigo-700 hover:underline">{lead.name}</Link>
+                    <Link to={leadLink(lead.id)} className="font-medium text-slate-900 hover:text-brand-700 hover:underline">{lead.name}</Link>
                     <span className="text-slate-500">
                       {nameOf(people, lead.assigned_to) || "Nobody assigned"} · waiting <span className="font-medium text-rose-600">{duration(min)}</span>
                     </span>

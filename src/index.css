@@ -2,19 +2,26 @@
 @import "@fontsource-variable/inter";
 
 /* Premium look: Inter, softer page background, rounder corners and gentler
-   shadows everywhere. "brand" is the indigo-violet used for primary actions. */
+   shadows everywhere. "brand" is the IWILLCRM logo teal (500 = #018F81);
+   600 is the button/link shade because it reads better under small white text.
+   The sidebar is the logo navy. */
 @theme {
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
-  --color-brand-50: #f0f0ff;
-  --color-brand-100: #e4e4fe;
-  --color-brand-500: #6d5ff5;
-  --color-brand-600: #5b5bf0;
-  --color-brand-700: #4b47d6;
-  --color-violet-brand: #8b5cf6;
+  --color-brand-50: #e6f4f2;
+  --color-brand-100: #c8ebe6;
+  --color-brand-200: #97d8cf;
+  --color-brand-300: #5cbfb3;
+  --color-brand-400: #27a596;
+  --color-brand-500: #018f81;
+  --color-brand-600: #00796d;
+  --color-brand-700: #00635a;
+  --color-brand-800: #064e48;
+  --color-brand-900: #0a3f3b;
+  --color-navy: #0b1b2a;
 
-  --color-page: #f5f6fa;
-  --color-sidebar: #0c1222;
+  --color-page: #f4f7f8;
+  --color-sidebar: #0b1b2a;
 
   --radius-md: 0.625rem;
   --radius-lg: 0.875rem;
@@ -36,11 +43,11 @@
 }
 
 @utility bg-brand-gradient {
-  background-image: linear-gradient(135deg, #5b5bf0 0%, #8b5cf6 100%);
+  background-color: #00796d;
 }
 
 @utility shadow-brand {
-  box-shadow: 0 6px 16px -4px rgb(91 91 240 / 0.45);
+  box-shadow: 0 4px 12px -4px rgb(0 121 109 / 0.4);
 }
 
 @utility scrollbar-thin {

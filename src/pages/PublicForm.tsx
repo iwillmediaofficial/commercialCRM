@@ -89,7 +89,7 @@ export default function PublicForm() {
       </div>
     );
 
-  const color = safeColor(form.theme_color) ?? "#4f46e5";
+  const color = safeColor(form.theme_color) ?? "#00796d";
   const brand: CSSProperties = { backgroundColor: color, color: textOn(color) };
   const set = (k: string) => (e: { target: { value: string } }) => setAnswers({ ...answers, [k]: e.target.value });
 

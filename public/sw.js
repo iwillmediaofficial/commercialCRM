@@ -9,9 +9,9 @@
 const OFFLINE_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Offline</title>
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-font-family:system-ui,sans-serif;background:#0c1222;color:#e2e8f0;text-align:center;padding:24px}
+font-family:system-ui,sans-serif;background:#0b1b2a;color:#e2e8f0;text-align:center;padding:24px}
 button{margin-top:16px;border:0;border-radius:10px;padding:10px 18px;font-weight:600;color:#fff;
-background:linear-gradient(135deg,#5b5bf0,#8b5cf6)}</style></head><body><div>
+background:#00796d}</style></head><body><div>
 <h1 style="font-size:20px;margin:0 0 8px">You're offline</h1>
 <p style="margin:0;color:#94a3b8">Check your internet connection and try again.</p>
 <button onclick="location.reload()">Try again</button></div></body></html>`;

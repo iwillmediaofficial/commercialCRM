@@ -37,7 +37,7 @@ export default function Home() {
           <Card title="No company yet">
             <p className="text-sm text-slate-600">
               Your account is not part of any company. Ask your company admin for a PIN, then{" "}
-              <Link className="text-indigo-600" to="/signup">enter it here</Link> with this email and password.
+              <Link className="text-brand-600" to="/signup">enter it here</Link> with this email and password.
             </p>
           </Card>
         ) : (

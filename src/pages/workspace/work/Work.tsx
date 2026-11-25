@@ -194,7 +194,7 @@ export default function Work() {
             {(["board", "list"] as View[]).map((v) => (
               <button
                 key={v}
-                className={`px-3 py-1.5 text-sm ${view === v ? "bg-indigo-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+                className={`px-3 py-1.5 text-sm ${view === v ? "bg-brand-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
                 onClick={() => changeView(v)}
               >
                 {v === "board" ? "Board" : "List"}
@@ -237,7 +237,7 @@ export default function Work() {
         </Select>
       </div>
       {anyFilter && (
-        <button className="text-sm text-indigo-600 hover:underline" onClick={() => setFilters({ q: "", status: "", priority: "", client: "", assignee: "", due: "" })}>
+        <button className="text-sm text-brand-600 hover:underline" onClick={() => setFilters({ q: "", status: "", priority: "", client: "", assignee: "", due: "" })}>
           Clear filters
         </button>
       )}
@@ -260,7 +260,7 @@ export default function Work() {
               return (
                 <div
                   key={status}
-                  className={`flex min-h-48 flex-col rounded-lg p-2 ${overCol === status ? "bg-indigo-50 ring-2 ring-indigo-300" : "bg-slate-100"}`}
+                  className={`flex min-h-48 flex-col rounded-lg p-2 ${overCol === status ? "bg-brand-50 ring-2 ring-brand-300" : "bg-slate-100"}`}
                   onDragOver={(e) => {
                     if (!dragId) return;
                     e.preventDefault();
@@ -408,9 +408,9 @@ function ItemCard(props: {
         props.onDropBefore();
       }}
       onClick={props.onOpen}
-      className={`cursor-pointer rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300 ${
+      className={`cursor-pointer rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 hover:ring-brand-300 ${
         props.dragging ? "opacity-40" : ""
-      } ${over ? "border-t-4 border-indigo-400" : ""} ${props.draggable ? "active:cursor-grabbing" : ""}`}
+      } ${over ? "border-t-4 border-brand-400" : ""} ${props.draggable ? "active:cursor-grabbing" : ""}`}
     >
       <div className="mb-1 flex items-start justify-between gap-2">
         <span className="font-medium leading-snug">{it.title}</span>

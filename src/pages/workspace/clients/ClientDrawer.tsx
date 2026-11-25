@@ -31,7 +31,7 @@ export default function ClientDrawer({ client, onClose, onEdit }: { client: Clie
         <Badge tone={client.status === "active" ? "bg-green-100 text-green-700" : undefined}>
           {client.status === "active" ? "Active" : "Inactive"}
         </Badge>
-        {client.is_dm_client && <Badge tone="bg-indigo-100 text-indigo-700">Digital marketing</Badge>}
+        {client.is_dm_client && <Badge tone="bg-brand-100 text-brand-700">Digital marketing</Badge>}
         {onEdit && (
           <Button variant="secondary" className="ml-auto" onClick={onEdit}>Edit</Button>
         )}
@@ -44,7 +44,7 @@ export default function ClientDrawer({ client, onClose, onEdit }: { client: Clie
             type="button"
             onClick={() => setTab(key)}
             className={`-mb-px border-b-2 px-3 py-2 text-sm ${
-              tab === key ? "border-indigo-600 font-medium text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-700"
+              tab === key ? "border-brand-600 font-medium text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
           >
             {label}
@@ -97,9 +97,9 @@ function Details({ client: c }: { client: Client }) {
   return (
     <dl className="divide-y divide-slate-100">
       <Row label="Contact">{c.contact_person}</Row>
-      <Row label="Phone">{c.phone && <a className="text-indigo-600" href={`tel:${c.phone}`}>{c.phone}</a>}</Row>
-      <Row label="Email">{c.email && <a className="text-indigo-600" href={`mailto:${c.email}`}>{c.email}</a>}</Row>
-      <Row label="Website">{site && <a className="text-indigo-600" href={site} target="_blank" rel="noreferrer">{c.website}</a>}</Row>
+      <Row label="Phone">{c.phone && <a className="text-brand-600" href={`tel:${c.phone}`}>{c.phone}</a>}</Row>
+      <Row label="Email">{c.email && <a className="text-brand-600" href={`mailto:${c.email}`}>{c.email}</a>}</Row>
+      <Row label="Website">{site && <a className="text-brand-600" href={site} target="_blank" rel="noreferrer">{c.website}</a>}</Row>
       <Row label="Address"><span className="whitespace-pre-line">{c.address}</span></Row>
       <Row label="GSTIN">{c.gstin}</Row>
       {c.is_dm_client && (
@@ -322,7 +322,7 @@ function AdFundsTab({ client }: { client: Client }) {
         <div>
           <div className="h-2 overflow-hidden rounded-full bg-slate-100">
             <div
-              className={`h-full ${thisMonth > target ? "bg-red-500" : "bg-indigo-500"}`}
+              className={`h-full ${thisMonth > target ? "bg-red-500" : "bg-brand-500"}`}
               style={{ width: `${Math.min(100, (thisMonth / target) * 100)}%` }}
             />
           </div>

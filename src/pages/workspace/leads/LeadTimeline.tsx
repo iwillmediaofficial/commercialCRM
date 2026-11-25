@@ -265,7 +265,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
                   key={k.key}
                   type="button"
                   onClick={() => setKind(k.key)}
-                  className={`px-3 py-1.5 text-xs font-medium first:rounded-l-md last:rounded-r-md ${kind === k.key ? "bg-indigo-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+                  className={`px-3 py-1.5 text-xs font-medium first:rounded-l-md last:rounded-r-md ${kind === k.key ? "bg-brand-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
                 >
                   {k.label}
                 </button>
@@ -309,7 +309,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
                       setNext(o.key);
                       if (o.key === "custom" && !custom) setCustom(toLocalInput(followUpAt ?? QUICK_PICKS[1].at()));
                     }}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${next === o.key ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${next === o.key ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
                   >
                     {o.label}
                   </button>
@@ -379,7 +379,7 @@ export default function LeadTimeline({ leadId, stage, followUpAt, onLeadChanged,
                         {canEdit && (
                           <button
                             type="button"
-                            className="font-medium text-indigo-600 hover:underline"
+                            className="font-medium text-brand-600 hover:underline"
                             onClick={() => {
                               setEditingId(a.id);
                               setEditBody(a.body ?? "");

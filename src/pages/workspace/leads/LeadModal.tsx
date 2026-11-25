@@ -175,7 +175,7 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
               role="tab"
               aria-selected={tab === k}
               onClick={() => setTab(k)}
-              className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+              className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
             >
               {label}
             </button>
@@ -268,9 +268,9 @@ export default function LeadModal({ lead, people, me, formFields, onClose, onSav
           <button
             type="button"
             onClick={() => setTab("timeline")}
-            className="block w-full rounded-md bg-indigo-50/60 p-3 text-left ring-1 ring-indigo-100 hover:bg-indigo-50"
+            className="block w-full rounded-md bg-brand-50/60 p-3 text-left ring-1 ring-brand-100 hover:bg-brand-50"
           >
-            <span className="mb-1 block text-xs font-medium text-indigo-700">
+            <span className="mb-1 block text-xs font-medium text-brand-700">
               Latest remark{current.last_remark_at ? ` · ${ago(current.last_remark_at)}` : ""} · see timeline
             </span>
             <span className="line-clamp-2 whitespace-pre-wrap break-words text-sm text-slate-800">{current.last_remark}</span>

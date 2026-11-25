@@ -71,7 +71,7 @@ export default function Companies() {
           <button
             key={label}
             onClick={() => setStatusFilter(key as string)}
-            className={`rounded-lg bg-white p-3 text-left shadow-sm ring-1 ${statusFilter === key ? "ring-indigo-500" : "ring-slate-200"}`}
+            className={`rounded-lg bg-white p-3 text-left shadow-sm ring-1 ${statusFilter === key ? "ring-brand-500" : "ring-slate-200"}`}
           >
             <div className="text-xs text-slate-500">{label}</div>
             <div className="text-xl font-semibold">{n}</div>
@@ -359,7 +359,7 @@ function Details({ w, onChanged }: { w: Row; onChanged: () => void }) {
         <div className="sm:col-span-2">
           <Field label="Private notes" hint="Only you see these.">
             <textarea
-              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               rows={2}
               value={form.notes}
               onChange={set("notes")}

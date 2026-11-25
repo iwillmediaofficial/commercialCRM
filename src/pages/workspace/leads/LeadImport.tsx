@@ -208,7 +208,7 @@ export default function LeadImport() {
           <h1 className="text-xl font-semibold">Import leads</h1>
           <p className="text-sm text-slate-500">Bring in leads from a Meta lead ad download (Excel or CSV), or any sheet with names and phone numbers.</p>
         </div>
-        <Link to={`/w/${workspace.slug}/leads`} className="text-sm font-medium text-indigo-600 hover:underline">Back to leads</Link>
+        <Link to={`/w/${workspace.slug}/leads`} className="text-sm font-medium text-brand-600 hover:underline">Back to leads</Link>
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -236,7 +236,7 @@ export default function LeadImport() {
                 Download skipped rows
               </Button>
             )}
-            <Link to={`/w/${workspace.slug}/follow-ups`} className="inline-flex items-center rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+            <Link to={`/w/${workspace.slug}/follow-ups`} className="inline-flex items-center rounded-lg bg-brand-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-700">
               Open Follow-ups
             </Link>
             <Button variant="secondary" onClick={reset}>Import another file</Button>
@@ -258,11 +258,11 @@ export default function LeadImport() {
               setDragOver(false);
               if (!reading) pick(e.dataTransfer.files?.[0]);
             }}
-            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-10 text-center transition ${dragOver ? "border-indigo-500 bg-indigo-50" : "border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40"} ${reading ? "pointer-events-none opacity-80" : ""}`}
+            className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-10 text-center transition ${dragOver ? "border-brand-500 bg-brand-50" : "border-slate-300 hover:border-brand-400 hover:bg-brand-50/40"} ${reading ? "pointer-events-none opacity-80" : ""}`}
           >
             {reading ? (
               <>
-                <span className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" aria-hidden />
+                <span className="h-8 w-8 animate-spin rounded-full border-4 border-brand-500 border-t-transparent" aria-hidden />
                 <span className="text-sm font-semibold text-slate-700">Reading {fileName || "the file"}…</span>
                 <span className="text-xs text-slate-500">Checking the leads and looking for duplicates. This takes a few seconds.</span>
               </>
@@ -398,7 +398,7 @@ export default function LeadImport() {
             {progress && (
               <div className="mt-4">
                 <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full bg-indigo-600 transition-all" style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }} />
+                  <div className="h-full bg-brand-600 transition-all" style={{ width: `${Math.round((progress.done / progress.total) * 100)}%` }} />
                 </div>
                 <p className="mt-1 text-xs text-slate-500">Importing… {progress.done} of {progress.total} rows checked. Keep this page open.</p>
               </div>

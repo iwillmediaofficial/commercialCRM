@@ -90,7 +90,7 @@ export default function LeadForms() {
                     <div className="mt-2 flex min-w-0 items-center gap-2">
                       <code className="min-w-0 truncate rounded bg-slate-100 px-2 py-1 text-xs">{publicLink(f.slug)}</code>
                       <Button variant="secondary" className="shrink-0 py-1! text-xs" onClick={() => copy(f.slug)}>{copied === f.slug ? "Copied" : "Copy"}</Button>
-                      <a className="shrink-0 text-xs font-medium text-indigo-600 hover:underline" href={`/f/${f.slug}`} target="_blank" rel="noreferrer">Open</a>
+                      <a className="shrink-0 text-xs font-medium text-brand-600 hover:underline" href={`/f/${f.slug}`} target="_blank" rel="noreferrer">Open</a>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -144,7 +144,7 @@ function FormEditor({
     slug: form?.slug ?? "",
     description: form?.description ?? "",
     default_source: form?.default_source ?? "Lead form",
-    theme_color: safeColor(form?.theme_color) ?? "#4f46e5",
+    theme_color: safeColor(form?.theme_color) ?? "#00796d",
     success_message: form?.success_message ?? "",
     is_active: form?.is_active ?? true,
   });

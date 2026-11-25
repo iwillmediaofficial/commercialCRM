@@ -178,7 +178,7 @@ export default function AdFunds() {
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-1 py-1.5 text-left align-bottom font-medium">Client</th>
                     {COLS.map(([l, k, help]) => (
-                      <th key={k} title={help} className={`cursor-help whitespace-normal break-words px-1 py-1.5 text-right align-bottom font-medium ${k === "toCollect" ? "text-amber-700" : ""} ${k === "unusedThisMonth" ? "text-indigo-700" : ""}`}>
+                      <th key={k} title={help} className={`cursor-help whitespace-normal break-words px-1 py-1.5 text-right align-bottom font-medium ${k === "toCollect" ? "text-amber-700" : ""} ${k === "unusedThisMonth" ? "text-brand-700" : ""}`}>
                         {l}
                       </th>
                     ))}
@@ -188,7 +188,7 @@ export default function AdFunds() {
                   {visible.map(({ client, row }) => (
                     <tr key={client.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenClient(client.id)}>
                       <td className="break-words px-1 py-1.5 align-top">
-                        <span className="font-medium text-indigo-700 hover:underline">{client.company_name}</span>
+                        <span className="font-medium text-brand-700 hover:underline">{client.company_name}</span>
                         {client.status === "inactive" && <span className="block text-slate-400">inactive</span>}
                         {!row.started && <span className="block text-slate-400" title="Before this client's first ad fund entry">not started</span>}
                       </td>

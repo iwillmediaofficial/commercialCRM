@@ -4,7 +4,6 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase";
 import { productName, useSiteInfo } from "../../lib/site";
 import { AppShell, UserMenu, type NavGroup } from "../../components/AppShell";
-import { Icon } from "../../components/icons";
 
 export default function AdminLayout() {
   const { isPlatformAdmin } = useAuth();
@@ -46,12 +45,9 @@ export default function AdminLayout() {
 
   const brand = (
     <div className="flex items-center gap-3 p-1.5">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-white shadow-brand">
-        <Icon name="shield" className="h-5 w-5" />
-      </span>
       <span className="min-w-0">
-        <span className="block truncate text-[15px] font-semibold text-white">{productName(info)}</span>
-        <span className="block text-xs text-slate-400">Super Admin</span>
+        <img src="/brand/logo-light.png" alt={productName(info)} className="block h-7 w-auto" />
+        <span className="mt-1.5 block text-xs text-slate-400">Super Admin</span>
       </span>
     </div>
   );

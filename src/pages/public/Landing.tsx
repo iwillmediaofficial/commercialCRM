@@ -83,7 +83,7 @@ function Icon({ d }: { d: string }) {
 
 function Check() {
   return (
-    <svg viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-indigo-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg viewBox="0 0 20 20" className="mt-1 h-4 w-4 shrink-0 text-brand-600" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 10l4 4 8-8" />
     </svg>
   );
@@ -100,9 +100,9 @@ export default function Landing() {
   return (
     <PublicShell info={info}>
       {/* Hero */}
-      <section className="bg-gradient-to-b from-indigo-50 to-white">
+      <section className="bg-gradient-to-b from-brand-50 to-white">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
-          <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">{name}</p>
+          <p className="text-sm font-semibold uppercase tracking-wide text-brand-600">{name}</p>
           <h1 className="mt-3 max-w-3xl text-3xl font-bold tracking-tight text-slate-900 sm:text-5xl">
             The CRM for digital marketing agencies and service businesses
           </h1>
@@ -111,7 +111,7 @@ export default function Landing() {
             Each company's data is private to that company.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <a href="#contact" className="rounded-md bg-indigo-600 px-5 py-3 text-center font-medium text-white hover:bg-indigo-700">
+            <a href="#contact" className="rounded-md bg-brand-600 px-5 py-3 text-center font-medium text-white hover:bg-brand-700">
               Get started
             </a>
             <Link to="/signup" className="rounded-md bg-white px-5 py-3 text-center font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">
@@ -131,7 +131,7 @@ export default function Landing() {
         <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div key={f.title} className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand-50 text-brand-600">
                 <Icon d={f.icon} />
               </div>
               <h3 className="mt-4 font-semibold text-slate-900">{f.title}</h3>
@@ -178,7 +178,7 @@ export default function Landing() {
                         <li key={m} className="flex gap-2"><Check />{label}</li>
                       ))}
                     </ul>
-                    <a href="#contact" className="mt-6 rounded-md bg-indigo-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-indigo-700">
+                    <a href="#contact" className="mt-6 rounded-md bg-brand-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-brand-700">
                       Talk to us
                     </a>
                   </div>
@@ -200,28 +200,28 @@ export default function Landing() {
             ["Sign up with the PIN", "Create your login with the PIN, then invite your team from inside the app."],
           ].map(([title, text], i) => (
             <li key={title} className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-sm font-semibold text-white">{i + 1}</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold text-white">{i + 1}</span>
               <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p>
             </li>
           ))}
         </ol>
         <p className="mt-6 text-sm text-slate-600">
-          Already have a PIN? <Link className="font-medium text-indigo-600" to="/signup">Create your account</Link>.
+          Already have a PIN? <Link className="font-medium text-brand-600" to="/signup">Create your account</Link>.
         </p>
       </section>
 
       {/* Contact */}
-      <section id="contact" className="border-t border-slate-200 bg-indigo-600 text-white">
+      <section id="contact" className="border-t border-slate-200 bg-brand-600 text-white">
         <div className="mx-auto max-w-6xl px-4 py-16">
           <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Talk to us</h2>
-          <p className="mt-2 max-w-2xl text-indigo-100">
+          <p className="mt-2 max-w-2xl text-brand-100">
             Questions, a demo or a trial account. Get in touch and we will set you up.
           </p>
           {email || phone ? (
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               {email && (
-                <a href={`mailto:${email}`} className="rounded-md bg-white px-5 py-3 text-center font-medium text-indigo-700 hover:bg-indigo-50">
+                <a href={`mailto:${email}`} className="rounded-md bg-white px-5 py-3 text-center font-medium text-brand-700 hover:bg-brand-50">
                   Email {email}
                 </a>
               )}
@@ -242,7 +242,7 @@ export default function Landing() {
               )}
             </div>
           ) : (
-            <p className="mt-8 text-indigo-100">Contact details will appear here soon.</p>
+            <p className="mt-8 text-brand-100">Contact details will appear here soon.</p>
           )}
         </div>
       </section>

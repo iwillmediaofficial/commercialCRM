@@ -159,10 +159,10 @@ export default function Dashboard() {
     ];
     if (hasModule("work"))
       list.push({
-        label: "Ongoing work", icon: "work", chip: "bg-indigo-50 text-indigo-600", value: String(work.length),
+        label: "Ongoing work", icon: "work", chip: "bg-brand-50 text-brand-600", value: String(work.length),
         aside: `${weekWork} due this week`,
         badge: overdueWork ? { text: `${overdueWork} overdue`, tone: "red" } : { text: "On track", tone: "green" },
-        spark: perMonth(work.map((w) => w.created_at)), sparkColor: "#6366f1", to: "work",
+        spark: perMonth(work.map((w) => w.created_at)), sparkColor: "#018f81", to: "work",
       });
     if (hasModule("leads"))
       list.push({
@@ -232,7 +232,7 @@ export default function Dashboard() {
           title: w.title,
           sub: [client, w.status.replace(/_/g, " ")].filter(Boolean).join(" · "),
           tag: w.priority === "urgent" ? "Urgent" : late ? "Overdue" : "Today",
-          tone: w.priority === "urgent" || late ? "bg-red-50 text-red-600" : "bg-indigo-50 text-indigo-600",
+          tone: w.priority === "urgent" || late ? "bg-red-50 text-red-600" : "bg-brand-50 text-brand-600",
           to: `work?open=${w.id}`,
         };
       });
@@ -549,12 +549,12 @@ function RevenueChart({ months }: { months: Month[] }) {
       >
         <defs>
           <linearGradient id="rev-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#6d5ff5" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#6d5ff5" stopOpacity="0" />
+            <stop offset="0%" stopColor="#018f81" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#018f81" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="rev-line" x1="0" x2="1" y1="0" y2="0">
-            <stop offset="0%" stopColor="#5b5bf0" />
-            <stop offset="100%" stopColor="#8b5cf6" />
+            <stop offset="0%" stopColor="#00796d" />
+            <stop offset="100%" stopColor="#018f81" />
           </linearGradient>
         </defs>
         {ticks.map((t) => (
@@ -571,8 +571,8 @@ function RevenueChart({ months }: { months: Month[] }) {
             {m.label}
           </text>
         ))}
-        <line x1={pts[pick][0]} x2={pts[pick][0]} y1={pad.t} y2={H - pad.b} stroke="#c7c9f9" strokeDasharray="3 4" />
-        <circle cx={pts[pick][0]} cy={pts[pick][1]} r="6" fill="white" stroke="#6d5ff5" strokeWidth="3" />
+        <line x1={pts[pick][0]} x2={pts[pick][0]} y1={pad.t} y2={H - pad.b} stroke="#97d8cf" strokeDasharray="3 4" />
+        <circle cx={pts[pick][0]} cy={pts[pick][1]} r="6" fill="white" stroke="#018f81" strokeWidth="3" />
       </svg>
       <div
         className="pointer-events-none absolute rounded-lg bg-slate-900 px-3 py-1.5 text-white shadow-lg"

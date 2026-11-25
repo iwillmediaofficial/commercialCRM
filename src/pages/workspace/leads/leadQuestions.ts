@@ -49,7 +49,7 @@ export function answerTone(option: string): { on: string; chip: string } {
   if (HOT.includes(o)) return { on: "bg-red-600 text-white ring-red-600", chip: "bg-red-100 text-red-700" };
   if (BAD.includes(o)) return { on: "bg-slate-600 text-white ring-slate-600", chip: "bg-slate-200 text-slate-700" };
   if (WARM.includes(o)) return { on: "bg-amber-500 text-white ring-amber-500", chip: "bg-amber-100 text-amber-800" };
-  return { on: "bg-indigo-600 text-white ring-indigo-600", chip: "bg-indigo-100 text-indigo-800" };
+  return { on: "bg-brand-600 text-white ring-brand-600", chip: "bg-brand-100 text-brand-800" };
 }
 
 export function useLeadQuestions(workspaceId: string) {

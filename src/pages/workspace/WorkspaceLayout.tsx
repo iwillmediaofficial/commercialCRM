@@ -158,7 +158,7 @@ export default function WorkspaceLayout() {
       {logoPath ? (
         <StoredImage storageKey={logoPath} className="h-10 w-10 shrink-0 rounded-xl bg-white object-cover" />
       ) : (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-300 to-orange-500 text-lg font-bold text-slate-900 shadow-lg shadow-orange-500/20">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-lg font-bold text-white">
           {ctx.workspace.name.trim()[0]?.toUpperCase()}
         </span>
       )}

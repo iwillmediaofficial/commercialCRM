@@ -185,7 +185,7 @@ export default function Clients() {
                     <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{c.company_name}</span>
-                      {c.is_dm_client && <Badge tone="bg-indigo-100 text-indigo-700">DM</Badge>}
+                      {c.is_dm_client && <Badge tone="bg-brand-100 text-brand-700">DM</Badge>}
                       {c.status === "inactive" && <Badge>Inactive</Badge>}
                     </div>
                     {c.contact_person && <div className="text-xs text-slate-500">{c.contact_person}</div>}

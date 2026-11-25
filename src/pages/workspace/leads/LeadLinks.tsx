@@ -193,7 +193,7 @@ export default function LeadLinks() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to={`/w/${workspace.slug}/leads`} className="self-center text-sm font-medium text-indigo-600 hover:underline">Back to leads</Link>
+          <Link to={`/w/${workspace.slug}/leads`} className="self-center text-sm font-medium text-brand-600 hover:underline">Back to leads</Link>
           {canWrite && links.length > 0 && links.length < 10 && <Button onClick={() => setEditing("new")}>+ New lead link</Button>}
         </div>
       </div>
@@ -230,7 +230,7 @@ export default function LeadLinks() {
                 <button
                   key={l.id}
                   onClick={() => setSelected(l.id)}
-                  className={`rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition ${l.id === selected ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
+                  className={`rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition ${l.id === selected ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
                 >
                   {l.name}
                   {!l.is_active && <span className="ml-1.5 text-xs opacity-75">(off)</span>}
@@ -408,7 +408,7 @@ function LinkDetail({ link, canWrite, assigneeName, onEdit, onChanged, onDeleted
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === t ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === t ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-700"}`}
           >
             {t === "setup" ? "Set up" : t === "fields" ? "Fields" : "Received"}
           </button>
@@ -454,7 +454,7 @@ function SetupGuide({ link, url }: { link: LeadLink; url: string }) {
 
   const step = (n: number, body: ReactNode) => (
     <li className="flex gap-3">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">{n}</span>
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">{n}</span>
       <div className="min-w-0 flex-1 text-sm text-slate-700">{body}</div>
     </li>
   );
@@ -469,7 +469,7 @@ function SetupGuide({ link, url }: { link: LeadLink; url: string }) {
           <button
             key={t}
             onClick={() => setTool(t)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ${tool === t ? "bg-indigo-50 text-indigo-700 ring-indigo-300" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium ring-1 ${tool === t ? "bg-brand-50 text-brand-700 ring-brand-300" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}
           >
             {l}
           </button>
@@ -488,7 +488,7 @@ function SetupGuide({ link, url }: { link: LeadLink; url: string }) {
                 onChange={(e) => setTabsText(e.target.value)}
                 rows={3}
                 placeholder={"e.g.\nDiwali 2026 offer 10%\nNRI Nov20"}
-                className="mt-2 block w-full max-w-md rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-indigo-400 focus:outline-none"
+                className="mt-2 block w-full max-w-md rounded-lg border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-brand-400 focus:outline-none"
                 aria-label="Tab names"
               />
               <span className="mt-1 block text-xs text-slate-500">
@@ -694,7 +694,7 @@ function ReceivedTab({ link }: { link: LeadLink }) {
                     <td className="py-2 pr-3 text-slate-600">{VIA[e.via ?? ""] ?? e.via ?? ""}</td>
                     <td className="whitespace-nowrap py-2 text-right">
                       {e.lead_id && (
-                        <Link to={`/w/${workspace.slug}/leads?open=${e.lead_id}`} className="mr-3 text-xs font-medium text-indigo-600 hover:underline">
+                        <Link to={`/w/${workspace.slug}/leads?open=${e.lead_id}`} className="mr-3 text-xs font-medium text-brand-600 hover:underline">
                           Open lead
                         </Link>
                       )}

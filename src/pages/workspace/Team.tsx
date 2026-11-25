@@ -173,7 +173,7 @@ export default function Team() {
             return (
               <li key={m.user_id} className="flex flex-wrap items-start justify-between gap-3 py-3">
                 <div className="flex min-w-0 items-start gap-3">
-                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-indigo-100 text-sm font-semibold text-indigo-700">
+                  <div className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
                     {(p?.full_name || p?.email || "?").trim().charAt(0).toUpperCase()}
                     {p?.avatar_path && <StoredImage storageKey={p.avatar_path} className="absolute inset-0 h-full w-full object-cover" />}
                   </div>
@@ -183,7 +183,7 @@ export default function Team() {
                       {isMe && <span className="text-xs text-slate-400">(you)</span>}
                       <Badge tone={ROLE_TONE[m.role]}><span className="capitalize">{m.role}</span></Badge>
                       {m.role === "staff" && m.can_add_own_work && !manageable && (
-                        <Badge tone="bg-indigo-50 text-indigo-700">Adds own work</Badge>
+                        <Badge tone="bg-brand-50 text-brand-700">Adds own work</Badge>
                       )}
                       {m.is_active ? (
                         <Badge tone="bg-green-100 text-green-700">Active</Badge>
@@ -195,8 +195,8 @@ export default function Team() {
                       <div className="text-sm text-slate-600">{[p?.designation, p?.department].filter(Boolean).join(" · ")}</div>
                     )}
                     <div className="text-xs break-all text-slate-500">
-                      {p?.email && <a href={`mailto:${p.email}`} className="hover:text-indigo-600">{p.email}</a>}
-                      {p?.phone && <> · <a href={`tel:${p.phone}`} className="hover:text-indigo-600">{p.phone}</a></>}
+                      {p?.email && <a href={`mailto:${p.email}`} className="hover:text-brand-600">{p.email}</a>}
+                      {p?.phone && <> · <a href={`tel:${p.phone}`} className="hover:text-brand-600">{p.phone}</a></>}
                     </div>
                     {showStats && (
                       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
