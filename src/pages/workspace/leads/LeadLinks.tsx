@@ -293,6 +293,7 @@ function LinkDetail({ link, canWrite, assigneeName, onEdit, onChanged, onDeleted
   onDeleted: (notice: string) => void;
   onError: (m: string) => void;
 }) {
+  const { workspace: { slug } } = useWorkspace();
   const [tab, setTab] = useState<Tab>("setup");
   const [show, setShow] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -344,6 +345,12 @@ function LinkDetail({ link, canWrite, assigneeName, onEdit, onChanged, onDeleted
         actions={
           <div className="flex items-center gap-2">
             <Badge tone={link.is_active ? "bg-green-100 text-green-800" : "bg-slate-200 text-slate-600"}>{link.is_active ? "On" : "Off"}</Badge>
+            <Link
+              to={`/w/${slug}/leads?from=link:${link.id}`}
+              className="inline-flex items-center justify-center rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+            >
+              View leads
+            </Link>
             {canWrite && <Button variant="secondary" onClick={onEdit}>Edit</Button>}
           </div>
         }

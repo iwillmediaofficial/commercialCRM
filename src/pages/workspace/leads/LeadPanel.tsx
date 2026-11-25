@@ -8,6 +8,7 @@ import { STAGES, STAGE_LABEL, STAGE_TONE, formAnswerList, humanize, type Stage }
 import { LOST_REASONS, QUICK_PICKS, followUpState, followUpTone, fromLocalInput, telLink, toLocalInput, waLink, whenLabel } from "./followUp";
 import { useContactLog } from "./ContactPrompt";
 import LeadTimeline from "./LeadTimeline";
+import { originLabel, useLeadOrigins } from "./leadOrigins";
 import type { Lead } from "./LeadModal";
 import { answerTone, parseAnswers, type Answers, type LeadQuestion } from "./leadQuestions";
 
@@ -32,6 +33,7 @@ const CONTACT_KINDS = ["call", "whatsapp", "meeting"];
 
 export default function LeadPanel({ leadId, questions, people, me, hasNext, onSaved, onBack, inDrawer, onFullDetails }: Props) {
   const { workspace, isAdmin, canWrite } = useWorkspace();
+  const origins = useLeadOrigins(workspace.id);
   const { logContact } = useContactLog();
   const [lead, setLead] = useState<Lead | null>(null);
   const [contacts, setContacts] = useState(0);
@@ -150,6 +152,7 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
             {lead.phone && <span className="tabular-nums">{lead.phone}</span>}
             {lead.email && <span className="break-all">{lead.email}</span>}
             <span>{lead.source}</span>
+            {originLabel(lead, origins) && <Badge tone="bg-indigo-50 text-indigo-700">{originLabel(lead, origins)}</Badge>}
             <Badge tone={STAGE_TONE[lead.stage as Stage]}>{STAGE_LABEL[lead.stage as Stage] ?? lead.stage}</Badge>
           </div>
           <div className="mt-1 flex flex-wrap gap-x-3 text-sm">

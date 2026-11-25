@@ -2481,6 +2481,7 @@ export type Database = {
         Args: { p_items: Json; p_link_id: string; p_via?: string }
         Returns: Json
       }
+      lead_origins: { Args: { p_workspace_id: string }; Returns: Json }
       rotate_lead_link_token: { Args: { p_link_id: string }; Returns: string }
       start_lead_import: {
         Args: { p_workspace_id: string; p_file_name: string; p_source: string; p_assign: string; p_assignee: string | null; p_total: number }
