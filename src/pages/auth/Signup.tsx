@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { supabase } from "../../lib/supabase";
+import { setRememberMe } from "../../lib/authStorage";
 import { signUpWithPin } from "../../lib/pinAuth";
 import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import { AuthShell } from "./AuthShell";
@@ -29,6 +30,7 @@ export default function Signup() {
       setError(result.message);
       return;
     }
+    setRememberMe(true);
     await supabase.auth.signInWithPassword({ email: form.email.trim(), password: form.password });
     navigate("/", { replace: true });
   }
