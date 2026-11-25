@@ -8,6 +8,8 @@ import { nameOf, useMembers } from "../../../lib/members";
 import { downloadCsv, inr } from "../../../lib/format";
 import { Alert, Badge, Button, Card, Drawer, Empty, Input, Select, Spinner } from "../../../components/ui";
 import LeadPanel from "./LeadPanel";
+import OriginFilter from "./OriginFilter";
+import { applyOrigin, originLabel, useLeadOrigins } from "./leadOrigins";
 import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
 import LeadModal, { type Lead } from "./LeadModal";
 import ConvertModal from "./ConvertModal";
@@ -70,6 +72,20 @@ function LeadsPage() {
   const [source, setSource] = useState("");
   const [assignee, setAssignee] = useState("");
   const [check, setCheck] = useState(""); // "<question key>\t<answer>", or "<key>\t" for unanswered
+  // Where leads came from ("link:<id>", "form:<id>", "import:<id>", "manual") and the Sheet tab,
+  // kept in the address (?from=…&sheet=…) so a filtered view can be bookmarked or shared.
+  const origins = useLeadOrigins(workspace.id);
+  const from = params.get("from") ?? "";
+  const sheetTab = params.get("sheet") ?? "";
+  const setOrigin = useCallback((f: string, t: string) => {
+    setParams((p) => {
+      if (f) p.set("from", f);
+      else p.delete("from");
+      if (f && t) p.set("sheet", t);
+      else p.delete("sheet");
+      return p;
+    }, { replace: true });
+  }, [setParams]);
   // One lead view for Board, List, search and alerts: a side drawer with Follow up / Details / Timeline tabs.
   const [opened, setOpened] = useState<{ id: string; tab: LeadTab } | null>(null);
   const questions = useLeadQuestions(workspace.id);
@@ -119,13 +135,14 @@ function LeadsPage() {
   useEffect(() => {
     setPage(0);
     setBoardLimit({});
-  }, [term, remarkHits, stage, source, assignee, check, view]);
+  }, [term, remarkHits, stage, source, assignee, check, from, sheetTab, view]);
 
   // All leads matching the search and filters (stage is applied by the caller).
   const matching = useCallback(() => {
     const base = () => supabase.from("leads").select("*", { count: "exact" }).eq("workspace_id", workspace.id);
     const filter = (qb: ReturnType<typeof base>) => {
       if (source) qb = qb.eq("source", source);
+      qb = applyOrigin(qb, from, sheetTab);
       if (assignee === "none") qb = qb.is("assigned_to", null);
       else if (assignee) qb = qb.eq("assigned_to", assignee);
       if (check) {
@@ -142,7 +159,7 @@ function LeadsPage() {
       return qb;
     };
     return filter(base());
-  }, [workspace.id, source, assignee, check, term, remarkHits]);
+  }, [workspace.id, source, assignee, check, from, sheetTab, term, remarkHits]);
 
   const load = useCallback(async () => {
 
@@ -245,8 +262,8 @@ function LeadsPage() {
     const rows = all;
     downloadCsv(
                 "leads.csv",
-                ["Name", "Company", "Phone", "Email", "Source", "Stage", "Lost reason", "Value", "Score", "Assigned to", ...questions.map((x) => x.label), "Next follow-up", "Last contact", "Last remark", "Added"],
-                rows.map((l) => [l.name, l.company, l.phone, l.email, l.source, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
+                ["Name", "Company", "Phone", "Email", "Source", "Came from", "Campaign", "Stage", "Lost reason", "Value", "Score", "Assigned to", ...questions.map((x) => x.label), "Next follow-up", "Last contact", "Last remark", "Added"],
+                rows.map((l) => [l.name, l.company, l.phone, l.email, l.source, originLabel(l, origins) ?? "Added by hand", l.campaign_details, STAGE_LABEL[l.stage as Stage], l.lost_reason, l.value, l.score, nameOf(people, l.assigned_to),
                   ...questions.map((x) => parseAnswers(l.answers)[x.key] ?? ""),
                   l.follow_up_at ? new Date(l.follow_up_at).toLocaleString("en-IN") : "", l.last_contacted_at ? new Date(l.last_contacted_at).toLocaleString("en-IN") : "",
                   l.last_remark, l.created_at.slice(0, 10)]),
@@ -380,7 +397,7 @@ function LeadsPage() {
 
       {error && <Alert>{error}</Alert>}
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
         <Input type="search" placeholder="Search name, phone, company, remarks" value={q} onChange={(e) => setQ(e.target.value)} />
         {view === "table" && (
           <Select value={stage} onChange={(e) => setStage(e.target.value)} aria-label="Stage">
@@ -392,6 +409,7 @@ function LeadsPage() {
           <option value="">All sources</option>
           {sourceOptions.map((s) => <option key={s}>{s}</option>)}
         </Select>
+        <OriginFilter workspaceId={workspace.id} origins={origins} from={from} tab={sheetTab} onChange={setOrigin} />
         <Select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Assigned to">
           <option value="">Anyone</option>
           <option value="none">Not assigned</option>
@@ -462,6 +480,7 @@ function LeadsPage() {
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-1">
                           <Badge>{l.source}</Badge>
+                          {originLabel(l, origins) && <Badge tone="bg-indigo-50 text-indigo-700">{originLabel(l, origins)}</Badge>}
                           {l.score != null && <Badge tone={l.score >= 70 ? "bg-green-100 text-green-800" : l.score >= 40 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}>Score {l.score}</Badge>}
                           {l.converted_client_id && <Badge tone="bg-green-100 text-green-800">Client</Badge>}
                           {isOpen(l) && !l.first_contacted_at && <Badge tone="bg-rose-100 text-rose-700">Not contacted</Badge>}
@@ -530,6 +549,7 @@ function LeadsPage() {
                       <td className="px-5 py-2">
                         <div className="font-medium">{l.name}</div>
                         {l.company && <div className="text-xs text-slate-500">{l.company}</div>}
+                        {originLabel(l, origins) && <div className="text-[11px] text-indigo-600">{originLabel(l, origins)}</div>}
                       </td>
                       <td className="px-2 py-2 text-xs">
                         {l.phone && <div>{l.phone}</div>}
@@ -582,7 +602,7 @@ function LeadsPage() {
               </table>
             </div>
           ) : (
-            <Empty>{term || stage || source || assignee || check ? "No leads match these filters." : "No leads yet. Add one, or share a lead form."}</Empty>
+            <Empty>{term || stage || source || from || assignee || check ? "No leads match these filters." : "No leads yet. Add one, or share a lead form."}</Empty>
           )}
           {listTotal > PAGE_SIZE && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-sm">

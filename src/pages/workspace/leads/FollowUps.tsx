@@ -11,6 +11,8 @@ import { followUpState, followUpTone, whenLabel } from "./followUp";
 import { answerTone, parseAnswers, useLeadQuestions } from "./leadQuestions";
 import type { Json } from "../../../lib/database.types";
 import LeadPanel from "./LeadPanel";
+import OriginFilter from "./OriginFilter";
+import { matchesOrigin, useLeadOrigins } from "./leadOrigins";
 import FollowUpResults, { wonAt, type StatActivity } from "./FollowUpResults";
 import { lockTimeLabel, useLeadLock } from "./leadLock";
 
@@ -30,6 +32,10 @@ type Row = {
   created_at: string;
   answers: Json;
   lost_reason: string | null;
+  lead_link_id: string | null;
+  form_id: string | null;
+  import_id: string | null;
+  campaign_details: string | null;
 };
 
 const RANGES = [
@@ -76,6 +82,9 @@ export default function FollowUps() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("overdue");
   const [who, setWho] = useState("");
+  const origins = useLeadOrigins(workspace.id);
+  const [from, setFrom] = useState("");
+  const [sheetTab, setSheetTab] = useState("");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -119,7 +128,7 @@ export default function FollowUps() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("leads")
-      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at, answers, lost_reason")
+      .select("id, name, company, phone, stage, source, assigned_to, follow_up_at, first_contacted_at, last_contacted_at, last_remark, last_remark_at, created_at, answers, lost_reason, lead_link_id, form_id, import_id, campaign_details")
       .eq("workspace_id", workspace.id)
       .limit(5000);
     if (error) setError(error.message);
@@ -154,12 +163,12 @@ export default function FollowUps() {
   }, []);
 
   const mine = useMemo(
-    () => (rows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who)),
-    [rows, who],
+    () => (rows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who) && matchesOrigin(r, from, sheetTab)),
+    [rows, who, from, sheetTab],
   );
   const mineAll = useMemo(
-    () => (allRows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who)),
-    [allRows, who],
+    () => (allRows ?? []).filter((r) => (who === "" ? true : who === "none" ? !r.assigned_to : r.assigned_to === who) && matchesOrigin(r, from, sheetTab)),
+    [allRows, who, from, sheetTab],
   );
   // Leads won in this period and the one before.
   const won = useMemo(() => {
@@ -291,6 +300,17 @@ export default function FollowUps() {
               {away ? "Away: not getting new leads" : "Getting new leads"}
             </label>
           )}
+          <OriginFilter
+            className="!w-auto"
+            workspaceId={workspace.id}
+            origins={origins}
+            from={from}
+            tab={sheetTab}
+            onChange={(f, t) => {
+              setFrom(f);
+              setSheetTab(t);
+            }}
+          />
           {isAdmin && (
             <Select className="!w-auto" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose follow-ups">
               <option value="">Everyone</option>
