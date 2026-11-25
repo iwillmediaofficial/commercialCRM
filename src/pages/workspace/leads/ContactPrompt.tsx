@@ -215,7 +215,7 @@ function HowDidItGo({
                 key={k}
                 type="button"
                 onClick={() => setOutcome(outcome === k ? "" : k)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ${outcome === k ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ${outcome === k ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
               >
                 {l}
               </button>
@@ -250,7 +250,7 @@ function HowDidItGo({
                     setNext(o.key);
                     if (o.key === "custom" && !custom) setCustom(toLocalInput(followUpAt ?? QUICK_PICKS[1].at()));
                   }}
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${next === o.key ? "bg-indigo-600 text-white ring-indigo-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium ring-1 ${next === o.key ? "bg-brand-600 text-white ring-brand-600" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`}
                 >
                   {o.label}
                 </button>

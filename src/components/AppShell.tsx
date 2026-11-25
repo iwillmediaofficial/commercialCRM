@@ -30,7 +30,7 @@ export function AppShell({
   useEffect(() => setOpen(false), [pathname]);
 
   const sidebar = (
-    <div className="flex h-full flex-col bg-sidebar bg-[radial-gradient(120%_60%_at_0%_0%,rgba(91,91,240,0.18),transparent_60%)] text-slate-300">
+    <div className="flex h-full flex-col bg-sidebar bg-[radial-gradient(120%_60%_at_0%_0%,rgba(1,143,129,0.16),transparent_60%)] text-slate-300">
       <div className="px-4 pt-5 pb-3">{brand}</div>
       <nav className="scrollbar-thin flex-1 space-y-5 overflow-y-auto px-3 pb-4">
         {groups.map((g, i) => (
@@ -45,14 +45,14 @@ export function AppShell({
                     className={({ isActive }) =>
                       `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                         isActive
-                          ? "bg-gradient-to-r from-brand-600/35 to-violet-brand/15 text-white shadow-[inset_0_0_0_1px_rgba(139,92,246,0.35)]"
+                          ? "bg-brand-500/15 text-white shadow-[inset_0_0_0_1px_rgba(1,143,129,0.4)]"
                           : "text-slate-400 hover:bg-white/5 hover:text-white"
                       }`
                     }
                   >
                     {({ isActive }) => (
                       <>
-                        <Icon name={n.icon} className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-violet-300" : "text-slate-500 group-hover:text-slate-300"}`} />
+                        <Icon name={n.icon} className={`h-[18px] w-[18px] shrink-0 ${isActive ? "text-brand-300" : "text-slate-500 group-hover:text-slate-300"}`} />
                         <span className="flex-1 truncate">{n.label}</span>
                         {!!n.badge && (
                           <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-slate-200">{n.badge > 99 ? "99+" : n.badge}</span>

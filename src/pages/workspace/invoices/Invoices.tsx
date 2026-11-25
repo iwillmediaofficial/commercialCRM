@@ -196,7 +196,7 @@ function InvoiceList() {
                 <tbody className="divide-y divide-slate-100">
                   {shown.map((r) => (
                     <tr key={r.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setViewing(r.id!)}>
-                      <td className="py-2 pr-2 font-medium text-indigo-700">{invNo(r)}</td>
+                      <td className="py-2 pr-2 font-medium text-brand-700">{invNo(r)}</td>
                       <td className="py-2 pr-2">{clientName(clients, r.client_id)}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(r.issue_date)}</td>
                       <td className="py-2 pr-2 whitespace-nowrap">{date(r.due_date)}</td>

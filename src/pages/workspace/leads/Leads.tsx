@@ -355,7 +355,7 @@ function LeadsPage() {
                 key={v}
                 type="button"
                 onClick={() => switchView(v)}
-                className={`px-3 py-2 text-sm first:rounded-l-md last:rounded-r-md ${view === v ? "bg-indigo-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
+                className={`px-3 py-2 text-sm first:rounded-l-md last:rounded-r-md ${view === v ? "bg-brand-600 text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
               >
                 {v === "board" ? "Board" : "List"}
               </button>
@@ -423,7 +423,7 @@ function LeadsPage() {
                 <section
                   key={s.key}
                   aria-label={s.label}
-                  className={`flex w-64 shrink-0 flex-col rounded-lg border-t-4 bg-slate-100 p-2 ${s.bar} ${overStage === s.key ? "ring-2 ring-indigo-400" : ""}`}
+                  className={`flex w-64 shrink-0 flex-col rounded-lg border-t-4 bg-slate-100 p-2 ${s.bar} ${overStage === s.key ? "ring-2 ring-brand-400" : ""}`}
                   onDragOver={(e) => {
                     if (!draggable || !dragId) return;
                     e.preventDefault();
@@ -451,7 +451,7 @@ function LeadsPage() {
                         onDragOver={(e) => draggable && dragId && e.preventDefault()}
                         onDrop={(e) => draggable && onDrop(e, s.key, l.id)}
                         onClick={() => setOpened({ id: l.id, tab: "followup" })}
-                        className={`cursor-pointer rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 hover:ring-indigo-300 ${dragId === l.id ? "opacity-40" : ""}`}
+                        className={`cursor-pointer rounded-md bg-white p-3 text-sm shadow-sm ring-1 ring-slate-200 hover:ring-brand-300 ${dragId === l.id ? "opacity-40" : ""}`}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -493,7 +493,7 @@ function LeadsPage() {
                           setLoadingMore(s.key);
                           setBoardLimit((b) => ({ ...b, [s.key]: (b[s.key] ?? BOARD_STEP) + BOARD_STEP }));
                         }}
-                        className="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-indigo-700 ring-1 ring-slate-200 hover:bg-white disabled:opacity-60"
+                        className="rounded-md bg-white/70 px-3 py-2 text-xs font-semibold text-brand-700 ring-1 ring-slate-200 hover:bg-white disabled:opacity-60"
                       >
                         {loadingMore === s.key ? "Loading…" : `View more (${more} more)`}
                       </button>
@@ -613,7 +613,7 @@ function LeadsPage() {
                   role="tab"
                   aria-selected={opened.tab === k}
                   onClick={() => setTab(k)}
-                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${opened.tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+                  className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${opened.tab === k ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
                 >
                   {label}
                 </button>

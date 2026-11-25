@@ -36,7 +36,7 @@ export default function Signup() {
   return (
     <AuthShell
       title={asPlatformAdmin ? "Join as Super Admin" : "Create your account"}
-      footer={<>Already have an account? <Link className="text-indigo-600" to="/login">Sign in</Link></>}
+      footer={<>Already have an account? <Link className="text-brand-600" to="/login">Sign in</Link></>}
     >
       <form className="space-y-4" onSubmit={submit}>
         {error && <Alert>{error}</Alert>}

@@ -102,7 +102,7 @@ export default function Renewals() {
                     {r.reference_no && <div className="text-xs text-slate-500">UTR {r.reference_no}</div>}
                     {r.receipt_path && (
                       <div>
-                        <button type="button" className="text-xs text-indigo-600 hover:underline" onClick={() => viewReceipt(r.receipt_path!)}>
+                        <button type="button" className="text-xs text-brand-600 hover:underline" onClick={() => viewReceipt(r.receipt_path!)}>
                           View receipt
                         </button>
                       </div>

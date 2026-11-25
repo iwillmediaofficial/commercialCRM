@@ -223,7 +223,7 @@ export default function Timesheets() {
                     {ownWrite && (
                       <td className="whitespace-nowrap py-2 text-right">
                         {(adminWrite || e.user_id === me) && (
-                          <button className="text-xs text-indigo-600 hover:underline" onClick={() => setEditing(e)}>Edit</button>
+                          <button className="text-xs text-brand-600 hover:underline" onClick={() => setEditing(e)}>Edit</button>
                         )}
                         {adminWrite && <button className="ml-3 text-xs text-red-600 hover:underline" onClick={() => remove(e)}>Delete</button>}
                       </td>

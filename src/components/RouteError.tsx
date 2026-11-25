@@ -36,7 +36,7 @@ export default function RouteError() {
         <h1 className="text-lg font-semibold">Something went wrong on this page</h1>
         <p className="text-sm text-slate-600">Your data is safe. Go back and try again; if it keeps happening, send this message to support:</p>
         <pre className="whitespace-pre-wrap rounded bg-slate-100 p-2 text-left text-xs text-slate-700">{detail}</pre>
-        <Link className="text-sm text-indigo-600" to="/">Back to start</Link>
+        <Link className="text-sm text-brand-600" to="/">Back to start</Link>
       </div>
     </div>
   );

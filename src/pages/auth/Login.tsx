@@ -28,9 +28,9 @@ export default function Login() {
       title="Sign in"
       footer={
         <>
-          Have a PIN? <Link className="text-indigo-600" to="/signup">Create your account</Link>
+          Have a PIN? <Link className="text-brand-600" to="/signup">Create your account</Link>
           <span className="mx-2">·</span>
-          <Link className="text-indigo-600" to="/reset">Forgot password</Link>
+          <Link className="text-brand-600" to="/reset">Forgot password</Link>
         </>
       }
     >

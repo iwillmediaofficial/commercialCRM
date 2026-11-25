@@ -240,7 +240,7 @@ export default function Billing() {
                       <td className="text-right">{inr(p.amount)}</td>
                       <td className="whitespace-nowrap pl-4">
                         {p.invoice_no ? (
-                          <Link className="text-indigo-600 hover:underline" to={`/invoice/subscription/${p.id}`}>{p.invoice_no}</Link>
+                          <Link className="text-brand-600 hover:underline" to={`/invoice/subscription/${p.id}`}>{p.invoice_no}</Link>
                         ) : (
                           <span className="text-xs text-slate-400">Not available</span>
                         )}

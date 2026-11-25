@@ -74,7 +74,7 @@ export default function Payments() {
       <Card
         title="Payments ledger"
         actions={
-          <button className="text-sm text-indigo-600 hover:underline disabled:opacity-50" disabled={!shown.length} onClick={exportCsv}>
+          <button className="text-sm text-brand-600 hover:underline disabled:opacity-50" disabled={!shown.length} onClick={exportCsv}>
             Download CSV
           </button>
         }
@@ -106,7 +106,7 @@ export default function Payments() {
                     <td className="text-xs text-slate-500">{date(r.valid_from)} to {date(r.valid_until)}</td>
                     <td className="whitespace-nowrap">
                       {r.invoice_no ? (
-                        <Link className="text-indigo-600 hover:underline" to={`/invoice/subscription/${r.id}`}>{r.invoice_no}</Link>
+                        <Link className="text-brand-600 hover:underline" to={`/invoice/subscription/${r.id}`}>{r.invoice_no}</Link>
                       ) : (
                         <span className="text-xs text-slate-400">None</span>
                       )}

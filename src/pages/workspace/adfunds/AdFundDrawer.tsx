@@ -95,7 +95,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
         {tabs.map(([k, l]) => (
           <button
             key={k}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? "border-indigo-600 text-indigo-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${tab === k ? "border-brand-600 text-brand-700" : "border-transparent text-slate-500 hover:text-slate-800"}`}
             onClick={() => setTab(k)}
           >
             {l}
@@ -159,7 +159,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
                       <td className="py-1.5 text-right">
                         {e.collection && (
                           <div className="flex justify-end gap-1">
-                            <button className="text-xs text-indigo-600 hover:underline" onClick={() => onEditCollection(e.collection!)}>Edit</button>
+                            <button className="text-xs text-brand-600 hover:underline" onClick={() => onEditCollection(e.collection!)}>Edit</button>
                             <button className="text-xs text-red-600 hover:underline" onClick={() => remove("ad_fund_collections", e.id, "collection")}>Delete</button>
                           </div>
                         )}
@@ -200,7 +200,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
                     {canWrite && (
                       <td className="py-1.5 text-right">
                         <div className="flex justify-end gap-1">
-                          <button className="text-xs text-indigo-600 hover:underline" onClick={() => setAdj(a)}>Edit</button>
+                          <button className="text-xs text-brand-600 hover:underline" onClick={() => setAdj(a)}>Edit</button>
                           <button className="text-xs text-red-600 hover:underline" onClick={() => remove("ad_fund_adjustments", a.id, "entry")}>Delete</button>
                         </div>
                       </td>
@@ -226,7 +226,7 @@ export default function AdFundDrawer({ client, uploads, collections, adjustments
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {[...ledger].reverse().filter((r) => r.started).map((r) => (
-                  <tr key={r.month} className={r.month === month ? "bg-indigo-50/60" : ""}>
+                  <tr key={r.month} className={r.month === month ? "bg-brand-50/60" : ""}>
                     <td className="py-1.5">{monthLabel(r.month)}</td>
                     <td className={`py-1.5 text-right ${neg(r.previousUnused)}`}>{inr(r.previousUnused)}</td>
                     <td className="py-1.5 text-right">{inr(r.target)}</td>

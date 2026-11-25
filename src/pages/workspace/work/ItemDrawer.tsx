@@ -298,7 +298,7 @@ export function ItemDrawer({ item, assignees, loggedSeconds, clients, people, me
             </div>
             {est > 0 && (
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200">
-                <div className={`h-full ${loggedH > est ? "bg-red-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+                <div className={`h-full ${loggedH > est ? "bg-red-500" : "bg-brand-500"}`} style={{ width: `${pct}%` }} />
               </div>
             )}
           </div>

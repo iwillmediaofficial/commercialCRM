@@ -92,7 +92,7 @@ export function Attachments({
             <li key={f.id} className="flex items-center gap-3 rounded-md p-2 ring-1 ring-slate-200">
               <Thumb file={f} />
               <button type="button" className="min-w-0 flex-1 text-left" onClick={() => openFile(f.id)}>
-                <div className="truncate text-sm text-indigo-700 hover:underline">{f.file_name}</div>
+                <div className="truncate text-sm text-brand-700 hover:underline">{f.file_name}</div>
                 <div className="text-xs text-slate-500">{formatBytes(f.size_bytes)} · {new Date(f.created_at).toLocaleDateString()}</div>
               </button>
               {canDelete(f) && (

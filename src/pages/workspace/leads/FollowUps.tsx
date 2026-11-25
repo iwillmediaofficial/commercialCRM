@@ -273,7 +273,7 @@ export default function FollowUps() {
                 type="button"
                 aria-pressed={view === v}
                 onClick={() => setView(v)}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === v ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium ${view === v ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}
               >
                 {v === "desk" ? "Follow up" : "Results"}
               </button>
@@ -353,7 +353,7 @@ export default function FollowUps() {
                 setSelected(null);
                 setMobileOpen(false);
               }}
-              className={`rounded-xl bg-white p-4 text-left shadow-sm ring-1 transition hover:ring-slate-300 ${active ? "ring-2 ring-indigo-500" : "ring-slate-200"}`}
+              className={`rounded-xl bg-white p-4 text-left shadow-sm ring-1 transition hover:ring-slate-300 ${active ? "ring-2 ring-brand-500" : "ring-slate-200"}`}
             >
               <div className="text-sm font-medium text-slate-500">{t.label}</div>
               <div className={`mt-1 text-2xl font-bold tabular-nums ${t.tone}`}>{t.value}</div>
@@ -389,10 +389,10 @@ export default function FollowUps() {
                   setQ("");
                   setSelected(null);
                 }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${!q && tab === t.key ? "bg-indigo-50 text-indigo-700" : "text-slate-600 hover:bg-slate-50"}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${!q && tab === t.key ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"}`}
               >
                 {t.label}
-                <span className={`rounded-full px-1.5 text-[11px] font-semibold ${!q && tab === t.key ? "bg-indigo-600 text-white" : t.tone}`}>{groups[t.key].length}</span>
+                <span className={`rounded-full px-1.5 text-[11px] font-semibold ${!q && tab === t.key ? "bg-brand-600 text-white" : t.tone}`}>{groups[t.key].length}</span>
               </button>
             ))}
           </div>
@@ -412,7 +412,7 @@ export default function FollowUps() {
                     type="button"
                     onClick={() => openLead(r.id)}
                     aria-current={current}
-                    className={`block w-full rounded-lg px-3 py-2.5 text-left ring-1 transition ${current ? "bg-indigo-50 ring-indigo-400" : "bg-white ring-slate-200 hover:ring-slate-300"}`}
+                    className={`block w-full rounded-lg px-3 py-2.5 text-left ring-1 transition ${current ? "bg-brand-50 ring-brand-400" : "bg-white ring-slate-200 hover:ring-slate-300"}`}
                   >
                     <span className="flex items-start justify-between gap-2">
                       <span className="min-w-0 truncate font-medium text-slate-900">{r.name}</span>

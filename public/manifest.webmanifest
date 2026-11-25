@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Agency CRM",
-  "short_name": "Agency CRM",
+  "name": "IWILLCRM",
+  "short_name": "IWILLCRM",
   "description": "Leads, follow-ups, clients and work for your team.",
   "start_url": "/?source=app",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0c1222",
-  "theme_color": "#0c1222",
+  "background_color": "#0b1b2a",
+  "theme_color": "#0b1b2a",
   "lang": "en-IN",
   "categories": ["business", "productivity"],
   "icons": [

@@ -166,8 +166,8 @@ function CalendarPage() {
                   const cell = byDay.get(d)!;
                   return (
                     <div key={d} className={`min-h-24 space-y-1 p-1 ${inMonth(d) ? "bg-white" : "bg-slate-50 text-slate-400"}`}>
-                      <div className={`text-right text-xs ${d === today ? "font-bold text-indigo-600" : ""}`}>
-                        {d === today ? <span className="rounded-full bg-indigo-600 px-1.5 text-white">{Number(d.slice(8))}</span> : Number(d.slice(8))}
+                      <div className={`text-right text-xs ${d === today ? "font-bold text-brand-600" : ""}`}>
+                        {d === today ? <span className="rounded-full bg-brand-600 px-1.5 text-white">{Number(d.slice(8))}</span> : Number(d.slice(8))}
                       </div>
                       {cell.inv.map((i) => invoiceTile(i))}
                       {cell.pay.map((p) => payTile(p))}
@@ -187,7 +187,7 @@ function CalendarPage() {
                     .filter((d) => inMonth(d) && (byDay.get(d)!.inv.length || byDay.get(d)!.pay.length))
                     .map((d) => (
                       <li key={d}>
-                        <div className={`mb-1 text-sm font-medium ${d === today ? "text-indigo-600" : ""}`}>
+                        <div className={`mb-1 text-sm font-medium ${d === today ? "text-brand-600" : ""}`}>
                           {new Date(d + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
                         </div>
                         <div className="space-y-1">

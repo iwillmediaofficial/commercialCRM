@@ -26,7 +26,7 @@ export default function Reset() {
   }
 
   return (
-    <AuthShell title="Reset password" footer={<Link className="text-indigo-600" to="/login">Back to sign in</Link>}>
+    <AuthShell title="Reset password" footer={<Link className="text-brand-600" to="/login">Back to sign in</Link>}>
       {done ? (
         <Alert tone="success">Your password is changed. You can sign in now.</Alert>
       ) : (

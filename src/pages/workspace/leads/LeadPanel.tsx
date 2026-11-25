@@ -130,7 +130,7 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
     onSaved(lead.id);
   }
 
-  const pill = (on: boolean, onTone = "bg-indigo-600 text-white ring-indigo-600") =>
+  const pill = (on: boolean, onTone = "bg-brand-600 text-white ring-brand-600") =>
     `rounded-full px-3 py-1 text-sm font-medium ring-1 transition disabled:opacity-60 ${on ? onTone : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-50"}`;
 
   return (
@@ -139,7 +139,7 @@ export default function LeadPanel({ leadId, questions, people, me, hasNext, onSa
         <div className="min-w-0">
           {!inDrawer && (
             <>
-              <button type="button" onClick={onBack} className="mb-2 text-sm font-semibold text-indigo-600 lg:hidden">
+              <button type="button" onClick={onBack} className="mb-2 text-sm font-semibold text-brand-600 lg:hidden">
                 ← Back to list
               </button>
               <h2 className="break-words text-xl font-semibold text-slate-900">{lead.name}</h2>

@@ -177,7 +177,7 @@ function RecurringPage() {
               {unpaid.map((r) => (
                 <li key={r.id} className="flex cursor-pointer items-center justify-between gap-2 py-2 hover:bg-slate-50" onClick={() => setViewing(r.id!)}>
                   <span>
-                    <span className="font-medium text-indigo-700">{invNo(r)}</span>{" "}
+                    <span className="font-medium text-brand-700">{invNo(r)}</span>{" "}
                     <span className="text-slate-500">· {clientName(clients, r.client_id)} · due {date(r.due_date)}</span>
                   </span>
                   <span className="flex items-center gap-2">
