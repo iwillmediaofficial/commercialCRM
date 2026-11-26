@@ -36,6 +36,7 @@ const Invoices = lazy(() => import("./pages/workspace/invoices/Invoices"));
 const Recurring = lazy(() => import("./pages/workspace/invoices/Recurring"));
 const BillingCalendar = lazy(() => import("./pages/workspace/invoices/Calendar"));
 const AdFunds = lazy(() => import("./pages/workspace/adfunds/AdFunds"));
+const Assets = lazy(() => import("./pages/workspace/assets/Assets"));
 const WorkspaceSettings = lazy(() => import("./pages/workspace/settings/Settings"));
 const PublicForm = lazy(() => import("./pages/PublicForm"));
 const Landing = lazy(() => import("./pages/public/Landing"));
@@ -105,6 +106,7 @@ const router = createBrowserRouter([
           { path: "recurring", element: <Recurring /> },
           { path: "calendar", element: <BillingCalendar /> },
           { path: "ad-funds", element: <AdFunds /> },
+          { path: "assets", element: <Assets /> },
           { path: "settings", element: <WorkspaceSettings /> },
           { path: "team", element: <Team /> },
           { path: "billing", element: <Billing /> },

@@ -5,7 +5,7 @@ import { supabase, type Tables } from "./supabase";
 // sees them; it only gets short-lived links.
 
 export type FileRow = Tables<"files">;
-export type EntityType = "work_item" | "client" | "lead" | "invoice" | "workspace" | "profile" | "renewal" | "lead_form";
+export type EntityType = "work_item" | "client" | "lead" | "invoice" | "workspace" | "profile" | "renewal" | "lead_form" | "company_record";
 
 export const MAX_FILE_MB = 20;
 

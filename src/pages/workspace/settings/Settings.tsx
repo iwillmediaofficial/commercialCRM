@@ -25,6 +25,7 @@ const RULES: [string, string, string][] = [
   ["follow_up_reminders", "Follow-up reminders", "Remind people when a lead's follow-up is due, and send each person a 9 AM summary of the day's follow-ups."],
   ["billing_alerts", "Billing alerts", "Tell admins about overdue invoices and new recurring invoices."],
   ["renewal_reminders", "Subscription renewal reminders", "Remind admins before the CRM subscription ends."],
+  ["expiry_reminders", "Asset & document expiry reminders", "Remind the owner, admins and the chosen person 30, 7 and 1 day before a document, asset date or domain expires, on the day, then weekly until renewed."],
 ];
 
 type Form = Record<TextField, string> & Record<NumberField, string> & { rules: Record<string, boolean>; staff_manual_time: boolean };

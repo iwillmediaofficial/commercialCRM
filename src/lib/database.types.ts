@@ -376,6 +376,119 @@ export type Database = {
           },
         ]
       }
+      company_records: {
+        Row: {
+          amount: number | null
+          auto_renew: boolean
+          category: string
+          created_at: string
+          created_by: string | null
+          expiry_date: string | null
+          held_by: string | null
+          hosting_expiry: string | null
+          id: string
+          issue_date: string | null
+          issued_by: string | null
+          kind: string
+          name: string
+          notes: string | null
+          reference: string | null
+          reminder_user_id: string | null
+          ssl_expiry: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          amount?: number | null
+          auto_renew?: boolean
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          held_by?: string | null
+          hosting_expiry?: string | null
+          id?: string
+          issue_date?: string | null
+          issued_by?: string | null
+          kind: string
+          name: string
+          notes?: string | null
+          reference?: string | null
+          reminder_user_id?: string | null
+          ssl_expiry?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          amount?: number | null
+          auto_renew?: boolean
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          expiry_date?: string | null
+          held_by?: string | null
+          hosting_expiry?: string | null
+          id?: string
+          issue_date?: string | null
+          issued_by?: string | null
+          kind?: string
+          name?: string
+          notes?: string | null
+          reference?: string | null
+          reminder_user_id?: string | null
+          ssl_expiry?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      company_record_renewals: {
+        Row: {
+          amount: number | null
+          id: string
+          new_expiry: string
+          note: string | null
+          old_expiry: string | null
+          record_id: string
+          renewed_at: string
+          renewed_by: string | null
+          workspace_id: string
+        }
+        Insert: {
+          amount?: number | null
+          id?: string
+          new_expiry: string
+          note?: string | null
+          old_expiry?: string | null
+          record_id: string
+          renewed_at?: string
+          renewed_by?: string | null
+          workspace_id: string
+        }
+        Update: {
+          amount?: number | null
+          id?: string
+          new_expiry?: string
+          note?: string | null
+          old_expiry?: string | null
+          record_id?: string
+          renewed_at?: string
+          renewed_by?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_record_renewals_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "company_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           ad_platforms: string[]
@@ -1353,6 +1466,8 @@ export type Database = {
           payment_note: string | null
           product_name: string
           reminder_days: number
+          record_file_max_mb: number
+          record_storage_mb: number
           sac_code: string
           seller_address: string | null
           seller_gstin: string | null
@@ -1379,6 +1494,8 @@ export type Database = {
           payment_note?: string | null
           product_name?: string
           reminder_days?: number
+          record_file_max_mb?: number
+          record_storage_mb?: number
           sac_code?: string
           seller_address?: string | null
           seller_gstin?: string | null
@@ -1405,6 +1522,8 @@ export type Database = {
           payment_note?: string | null
           product_name?: string
           reminder_days?: number
+          record_file_max_mb?: number
+          record_storage_mb?: number
           sac_code?: string
           seller_address?: string | null
           seller_gstin?: string | null
@@ -2277,6 +2396,8 @@ export type Database = {
       workspaces: {
         Row: {
           attachments_enabled: boolean
+          record_file_max_mb: number | null
+          record_storage_mb: number | null
           created_at: string
           created_by: string | null
           id: string
@@ -2301,6 +2422,8 @@ export type Database = {
         }
         Insert: {
           attachments_enabled?: boolean
+          record_file_max_mb?: number | null
+          record_storage_mb?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2325,6 +2448,8 @@ export type Database = {
         }
         Update: {
           attachments_enabled?: boolean
+          record_file_max_mb?: number | null
+          record_storage_mb?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2477,6 +2602,14 @@ export type Database = {
       }
     }
     Functions: {
+      company_record_file_limits: {
+        Args: { p_ws: string }
+        Returns: Json
+      }
+      renew_company_record: {
+        Args: { p_id: string; p_new_expiry: string; p_amount?: number | null; p_note?: string | null }
+        Returns: Database["public"]["Tables"]["company_records"]["Row"]
+      }
       receive_lead_link: {
         Args: { p_items: Json; p_link_id: string; p_via?: string }
         Returns: Json
