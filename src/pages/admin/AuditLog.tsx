@@ -36,7 +36,7 @@ function describe(action: string, d: Details) {
   if (d.reason) parts.push(`“${d.reason}”`);
   if (d.note) parts.push(`“${d.note}”`);
   if (action === "support_action") {
-    const verb = d.op === "INSERT" ? "Added" : d.op === "DELETE" ? "Deleted" : "Edited";
+    const verb = d.op === "INSERT" ? "Added to" : d.op === "DELETE" ? "Deleted from" : "Edited in";
     const what = String(d.table ?? "").replace(/_/g, " ");
     const n = Number(d.count ?? 1);
     parts.push(`${verb} ${n > 1 ? `${n} rows in ` : ""}${what}${d.label && n === 1 ? `: ${d.label}` : ""}`);

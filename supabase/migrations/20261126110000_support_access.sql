@@ -123,7 +123,7 @@ begin
   if v_uid is null or not exists (select 1 from public.platform_admins where user_id = v_uid) then
     return null;
   end if;
-  j := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+  j := case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) else to_jsonb(old) end;
   v_ws := (j ->> 'workspace_id')::uuid;
   if v_ws is null or exists (
     select 1 from public.workspace_members
@@ -131,7 +131,7 @@ begin
   ) then
     return null;
   end if;
-  v_label := left(coalesce(j ->> 'name', j ->> 'title', j ->> 'invoice_no', j ->> 'file_name', j ->> 'email', ''), 120);
+  v_label := left(coalesce(j ->> 'name', j ->> 'title', j ->> 'company_name', j ->> 'invoice_number', j ->> 'file_name', j ->> 'full_name', j ->> 'label', j ->> 'email', ''), 120);
 
   -- Fold repeats of the same kind of change within 10 seconds into one row.
   select id into v_id from public.admin_audit_log
