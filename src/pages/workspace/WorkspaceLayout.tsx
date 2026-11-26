@@ -144,6 +144,7 @@ export default function WorkspaceLayout() {
       label: "Company",
       items: [
         { to: "team", label: "Team", icon: "team" },
+        { to: "assets", label: "Assets & documents", icon: "folder" },
         admin && { to: "settings", label: "Settings", icon: "settings" },
         ctx.isAdmin && { to: "billing", label: "Subscription", icon: "card" },
       ],

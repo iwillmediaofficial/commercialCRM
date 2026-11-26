@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { stateOf } from "./assets/records";
 import { Link } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
@@ -301,6 +302,8 @@ export default function Dashboard() {
         )}
       </div>
 
+      <ExpiringSoon workspaceId={workspace.id} />
+
       <div className={`grid grid-cols-2 gap-3 sm:gap-4 ${kpis?.length === 5 ? "xl:grid-cols-5" : kpis?.length === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`}>
         {(kpis ?? []).map((k) => <KpiCard key={k.label} k={k} />)}
         {!kpis && Array.from({ length: 5 }, (_, i) => <div key={i} className="h-[148px] animate-pulse rounded-2xl bg-white ring-1 ring-slate-200/70" />)}
@@ -403,6 +406,39 @@ export default function Dashboard() {
         )}
       </div>
     </>
+  );
+}
+
+// "Assets & documents" items expired or due within 30 days. Hidden when none.
+function ExpiringSoon({ workspaceId }: { workspaceId: string }) {
+  const [n, setN] = useState({ expired: 0, soon: 0 });
+  useEffect(() => {
+    supabase
+      .from("company_records")
+      .select("*")
+      .eq("workspace_id", workspaceId)
+      .eq("status", "active")
+      .then(({ data }) => {
+        const c = { expired: 0, soon: 0 };
+        for (const r of data ?? []) {
+          const st = stateOf(r).state;
+          if (st === "expired" || st === "soon") c[st]++;
+        }
+        setN(c);
+      });
+  }, [workspaceId]);
+  if (!n.expired && !n.soon) return null;
+  return (
+    <Link
+      to="assets"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl bg-amber-50 px-5 py-3.5 text-sm text-amber-900 ring-1 ring-amber-200 transition hover:bg-amber-100/70"
+    >
+      <Icon name="folder" className="h-5 w-5 shrink-0 text-amber-600" />
+      <span className="font-semibold">Assets & documents</span>
+      {n.expired > 0 && <span>{n.expired} expired</span>}
+      {n.soon > 0 && <span>{n.soon} due in the next 30 days</span>}
+      <span className="ml-auto text-xs font-semibold text-amber-800">View</span>
+    </Link>
   );
 }
 
