@@ -29,7 +29,7 @@ const MAX_BYTES = 20 * 1024 * 1024;
 const LINK_SECONDS = 600;
 const ENTITY_TYPES = ["work_item", "client", "lead", "invoice", "workspace", "profile", "renewal", "lead_form", "company_record"];
 // Attachments the Super Admin switches on per company (workspaces.attachments_enabled).
-const ATTACHMENT_TYPES = ["work_item", "client", "lead", "invoice", "company_record"];
+const ATTACHMENT_TYPES = ["work_item", "client", "lead", "invoice"];
 // No HTML, SVG or scripts: they could run code when opened.
 const ALLOWED = /^(image\/(png|jpe?g|gif|webp|heic|heif)|application\/pdf|text\/(plain|csv)|application\/(zip|x-zip-compressed|msword|vnd\.ms-excel|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.[a-z.]+)|video\/(mp4|quicktime|webm)|audio\/(mpeg|mp4|ogg|wav))$/;
 

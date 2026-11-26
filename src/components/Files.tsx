@@ -15,6 +15,7 @@ export function Attachments({
   canUpload,
   canDelete,
   title = "Files",
+  ignoreSwitch = false,
 }: {
   workspaceId: string;
   entityType: EntityType;
@@ -22,9 +23,10 @@ export function Attachments({
   canUpload: boolean;
   canDelete: (f: FileRow) => boolean;
   title?: string;
+  ignoreSwitch?: boolean; // uploads allowed even with the company's attachments switch off
 }) {
   const { workspace } = useWorkspace();
-  const uploadsOn = !!workspace.attachments_enabled;
+  const uploadsOn = ignoreSwitch || !!workspace.attachments_enabled;
   const showUpload = canUpload && uploadsOn;
   const [files, setFiles] = useState<FileRow[] | null>(null);
   const [busy, setBusy] = useState(false);
