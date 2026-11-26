@@ -462,6 +462,22 @@ function RecordForm({
           </div>
         </div>
 
+        {!uploadsOn && (
+          <p className="rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-600 ring-1 ring-slate-200">
+            File uploads are turned off for this company. Ask the Super Admin to turn on file attachments to add PDFs and photos.
+          </p>
+        )}
+        {record && uploadsOn && (
+          <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
+            <Attachments
+              workspaceId={workspace.id}
+              entityType="company_record"
+              entityId={record.id}
+              canUpload
+              canDelete={() => true}
+            />
+          </div>
+        )}
         {!record && uploadsOn && (
           <div>
             <span className="mb-1 block text-sm font-medium text-slate-700">Files (optional, up to {MAX_FILES})</span>
