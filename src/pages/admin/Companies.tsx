@@ -400,7 +400,60 @@ function FileAttachments({ w, onChanged }: { w: Row; onChanged: () => void }) {
       </div>
       <p className="mt-2 text-xs text-slate-500">Lets this company upload files to tasks, clients, leads and invoices. Uses your R2 storage.</p>
       {error && <div className="mt-3"><Alert>{error}</Alert></div>}
+      <RecordFileLimits w={w} onChanged={onChanged} />
     </Panel>
+  );
+}
+
+// Assets & documents files work even with attachments off, within these limits.
+// Blank = the default from Super Admin Settings.
+function RecordFileLimits({ w, onChanged }: { w: Row; onChanged: () => void }) {
+  const [fileMb, setFileMb] = useState(w.record_file_max_mb != null ? String(w.record_file_max_mb) : "");
+  const [totalMb, setTotalMb] = useState(w.record_storage_mb != null ? String(w.record_storage_mb) : "");
+  const [usage, setUsage] = useState<{ file_mb: number; total_mb: number; used_bytes: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ tone: "error" | "success"; text: string } | null>(null);
+
+  const loadUsage = useCallback(() => {
+    supabase.rpc("company_record_file_limits", { p_ws: w.id }).then(({ data }) => setUsage((data as typeof usage) ?? null));
+  }, [w.id]);
+  useEffect(() => {
+    loadUsage();
+  }, [loadUsage, w.record_file_max_mb, w.record_storage_mb]);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setMsg(null);
+    const f = fileMb.trim() ? Number(fileMb) : null;
+    const t = totalMb.trim() ? Number(totalMb) : null;
+    if (f !== null && (!Number.isInteger(f) || f < 1 || f > 20)) return setMsg({ tone: "error", text: "Largest file should be a whole number from 1 to 20 MB." });
+    if (t !== null && (!Number.isInteger(t) || t < 1)) return setMsg({ tone: "error", text: "Storage should be a whole number of MB, 1 or more." });
+    setBusy(true);
+    const { error } = await supabase.from("workspaces").update({ record_file_max_mb: f, record_storage_mb: t }).eq("id", w.id);
+    setBusy(false);
+    if (error) return setMsg({ tone: "error", text: error.message });
+    setMsg({ tone: "success", text: "Limits saved." });
+    onChanged();
+  }
+
+  return (
+    <form className="mt-4 border-t border-slate-100 pt-4" onSubmit={save}>
+      <h3 className="text-sm font-semibold">Assets & documents files</h3>
+      <p className="mt-1 text-xs text-slate-500">
+        Always allowed for owners and admins, even with attachments off. Leave blank to use the defaults from Settings.
+        {usage && ` Using ${(usage.used_bytes / 1048576).toFixed(1)} MB of ${usage.total_mb} MB, up to ${usage.file_mb} MB a file.`}
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <Field label="Largest file (MB)">
+          <Input type="number" min={1} max={20} placeholder="Default" value={fileMb} onChange={(e) => setFileMb(e.target.value)} />
+        </Field>
+        <Field label="Storage for this company (MB)">
+          <Input type="number" min={1} placeholder="Default" value={totalMb} onChange={(e) => setTotalMb(e.target.value)} />
+        </Field>
+        <Button type="submit" variant="secondary" disabled={busy}>{busy ? "Saving…" : "Save limits"}</Button>
+      </div>
+      {msg && <div className="mt-3"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+    </form>
   );
 }
 

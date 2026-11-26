@@ -4,7 +4,7 @@ import { supabase, type Tables } from "../../../lib/supabase";
 import { useWorkspace } from "../../../lib/workspace";
 import { useMembers, nameOf, type Person } from "../../../lib/members";
 import { date, inr } from "../../../lib/format";
-import { MAX_FILE_MB, deleteFile, uploadFile } from "../../../lib/files";
+import { deleteFile, uploadFile } from "../../../lib/files";
 import { Attachments } from "../../../components/Files";
 import { Alert, Badge, Button, Card, Drawer, Empty, Field, Input, Modal, Select, Spinner, Textarea } from "../../../components/ui";
 import {
@@ -21,12 +21,32 @@ import {
   type State,
 } from "./records";
 
+type Limits = { file_mb: number; total_mb: number; used_bytes: number };
+const DEFAULT_LIMITS: Limits = { file_mb: 10, total_mb: 100, used_bytes: 0 };
+
+// File limits for this company's Assets & documents files, set by the Super Admin.
+function useLimits(workspaceId: string) {
+  const [limits, setLimits] = useState<Limits>(DEFAULT_LIMITS);
+  const reload = useCallback(() => {
+    supabase.rpc("company_record_file_limits", { p_ws: workspaceId }).then(({ data }) => {
+      if (data) setLimits(data as Limits);
+    });
+  }, [workspaceId]);
+  useEffect(() => {
+    reload();
+  }, [reload]);
+  return { limits, reload };
+}
+
+const mb = (bytes: number) => `${(bytes / 1048576).toFixed(bytes < 10 * 1048576 ? 1 : 0)} MB`;
+
 type Filter = "all" | "attention" | "expired" | "soon" | "ok" | "closed";
 const MAX_FILES = 5;
 
 export default function Assets() {
   const { workspace, isAdmin, canWrite } = useWorkspace();
   const people = useMembers(workspace.id);
+  const { limits, reload: reloadLimits } = useLimits(workspace.id);
   const canEdit = isAdmin && canWrite;
   const [records, setRecords] = useState<CompanyRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,6 +226,11 @@ export default function Assets() {
             ))}
           </ul>
         )}
+        {canEdit && (
+          <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
+            Files: {mb(limits.used_bytes)} of {limits.total_mb} MB used · up to {limits.file_mb} MB a file
+          </p>
+        )}
       </Card>
 
       {editing && (
@@ -213,11 +238,14 @@ export default function Assets() {
           kind={editing === "new" ? kind : (editing.kind as Kind)}
           record={editing === "new" ? null : editing}
           people={people}
+          limits={limits}
+          onFilesChanged={reloadLimits}
           onClose={() => setEditing(null)}
           onSaved={(saved) => {
             setEditing(null);
             setViewingId(saved.id);
             load();
+            reloadLimits();
           }}
         />
       )}
@@ -226,6 +254,8 @@ export default function Assets() {
         <RecordDrawer
           record={viewing}
           people={people}
+          limits={limits}
+          onFilesChanged={reloadLimits}
           canEdit={canEdit}
           onClose={() => setViewingId(null)}
           onEdit={() => setEditing(viewing)}
@@ -233,6 +263,7 @@ export default function Assets() {
           onDeleted={() => {
             setViewingId(null);
             load();
+            reloadLimits();
           }}
         />
       )}
@@ -295,12 +326,16 @@ function RecordForm({
   kind,
   record,
   people,
+  limits,
+  onFilesChanged,
   onClose,
   onSaved,
 }: {
   kind: Kind;
   record: CompanyRecord | null;
   people: Person[];
+  limits: Limits;
+  onFilesChanged: () => void;
   onClose: () => void;
   onSaved: (r: CompanyRecord) => void;
 }) {
@@ -320,8 +355,8 @@ function RecordForm({
   function pick(list: FileList | null) {
     const picked = Array.from(list ?? []);
     if (input.current) input.current.value = "";
-    const tooBig = picked.find((f) => f.size > MAX_FILE_MB * 1024 * 1024 && !f.type.startsWith("image/"));
-    if (tooBig) return setError(`${tooBig.name} is over ${MAX_FILE_MB} MB.`);
+    const tooBig = picked.find((f) => f.size > limits.file_mb * 1024 * 1024 && !f.type.startsWith("image/"));
+    if (tooBig) return setError(`${tooBig.name} is over ${limits.file_mb} MB.`);
     const next = [...files, ...picked].slice(0, MAX_FILES);
     if (files.length + picked.length > MAX_FILES) setError(`You can add up to ${MAX_FILES} files here. Add more later from the item.`);
     else setError("");
@@ -470,6 +505,8 @@ function RecordForm({
               canUpload
               canDelete={() => true}
               ignoreSwitch
+              maxMb={limits.file_mb}
+              onUploaded={onFilesChanged}
             />
           </div>
         )}
@@ -483,7 +520,7 @@ function RecordForm({
               disabled={files.length >= MAX_FILES}
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-3 text-sm text-slate-600 hover:border-brand-400 hover:bg-brand-50/40 disabled:opacity-50"
             >
-              Choose files (PDF, JPG or PNG, up to {MAX_FILE_MB} MB each)
+              Choose files (PDF, JPG or PNG, up to {limits.file_mb} MB each)
             </button>
             <span className="mt-1 block text-xs text-slate-500">Large photos are made smaller before upload, so they go faster on mobile data.</span>
             {files.length > 0 && (
@@ -513,6 +550,8 @@ function RecordForm({
 function RecordDrawer({
   record: r,
   people,
+  limits,
+  onFilesChanged,
   canEdit,
   onClose,
   onEdit,
@@ -521,6 +560,8 @@ function RecordDrawer({
 }: {
   record: CompanyRecord;
   people: Person[];
+  limits: Limits;
+  onFilesChanged: () => void;
   canEdit: boolean;
   onClose: () => void;
   onEdit: () => void;
@@ -618,6 +659,8 @@ function RecordDrawer({
           canUpload={canEdit}
           canDelete={() => canEdit}
           ignoreSwitch
+          maxMb={limits.file_mb}
+          onUploaded={onFilesChanged}
         />
       </div>
 

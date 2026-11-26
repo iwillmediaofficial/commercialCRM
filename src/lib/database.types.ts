@@ -1466,6 +1466,8 @@ export type Database = {
           payment_note: string | null
           product_name: string
           reminder_days: number
+          record_file_max_mb: number
+          record_storage_mb: number
           sac_code: string
           seller_address: string | null
           seller_gstin: string | null
@@ -1492,6 +1494,8 @@ export type Database = {
           payment_note?: string | null
           product_name?: string
           reminder_days?: number
+          record_file_max_mb?: number
+          record_storage_mb?: number
           sac_code?: string
           seller_address?: string | null
           seller_gstin?: string | null
@@ -1518,6 +1522,8 @@ export type Database = {
           payment_note?: string | null
           product_name?: string
           reminder_days?: number
+          record_file_max_mb?: number
+          record_storage_mb?: number
           sac_code?: string
           seller_address?: string | null
           seller_gstin?: string | null
@@ -2390,6 +2396,8 @@ export type Database = {
       workspaces: {
         Row: {
           attachments_enabled: boolean
+          record_file_max_mb: number | null
+          record_storage_mb: number | null
           created_at: string
           created_by: string | null
           id: string
@@ -2414,6 +2422,8 @@ export type Database = {
         }
         Insert: {
           attachments_enabled?: boolean
+          record_file_max_mb?: number | null
+          record_storage_mb?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2438,6 +2448,8 @@ export type Database = {
         }
         Update: {
           attachments_enabled?: boolean
+          record_file_max_mb?: number | null
+          record_storage_mb?: number | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -2590,6 +2602,10 @@ export type Database = {
       }
     }
     Functions: {
+      company_record_file_limits: {
+        Args: { p_ws: string }
+        Returns: Json
+      }
       renew_company_record: {
         Args: { p_id: string; p_new_expiry: string; p_amount?: number | null; p_note?: string | null }
         Returns: Database["public"]["Tables"]["company_records"]["Row"]

@@ -47,6 +47,8 @@ export default function Settings() {
         trial_days: s.trial_days,
         grace_days: s.grace_days,
         reminder_days: s.reminder_days,
+        record_file_max_mb: s.record_file_max_mb,
+        record_storage_mb: s.record_storage_mb,
         bank_account_name: blank(s.bank_account_name),
         bank_name: blank(s.bank_name),
         bank_account_number: blank(s.bank_account_number),
@@ -82,6 +84,22 @@ export default function Settings() {
           </Field>
           <Field label="Reminder (days before end)" hint="Owners and admins get an in-app reminder.">
             <Input {...days("reminder_days")} />
+          </Field>
+        </div>
+      </Card>
+      <Card title="Assets & documents files">
+        <p className="mb-3 text-sm text-slate-500">
+          Owners and admins can always attach files to their documents, assets and domains, even with file attachments off.
+          These are the default limits. You can set different limits for one company on its Companies page.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Largest file (MB)" hint="1 to 20 MB.">
+            <Input type="number" min={1} max={20} required value={s.record_file_max_mb}
+              onChange={(e) => setS({ ...s, record_file_max_mb: Number(e.target.value) })} />
+          </Field>
+          <Field label="Storage per company (MB)" hint="All Assets & documents files of one company together.">
+            <Input type="number" min={1} required value={s.record_storage_mb}
+              onChange={(e) => setS({ ...s, record_storage_mb: Number(e.target.value) })} />
           </Field>
         </div>
       </Card>

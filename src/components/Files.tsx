@@ -16,6 +16,8 @@ export function Attachments({
   canDelete,
   title = "Files",
   ignoreSwitch = false,
+  maxMb = MAX_FILE_MB,
+  onUploaded,
 }: {
   workspaceId: string;
   entityType: EntityType;
@@ -24,6 +26,8 @@ export function Attachments({
   canDelete: (f: FileRow) => boolean;
   title?: string;
   ignoreSwitch?: boolean; // uploads allowed even with the company's attachments switch off
+  maxMb?: number;
+  onUploaded?: () => void;
 }) {
   const { workspace } = useWorkspace();
   const uploadsOn = ignoreSwitch || !!workspace.attachments_enabled;
@@ -52,9 +56,15 @@ export function Attachments({
     setBusy(true);
     setError("");
     for (const file of Array.from(list)) {
+      // Photos are made smaller before upload, so only other files are checked here.
+      if (!file.type.startsWith("image/") && file.size > maxMb * 1024 * 1024) {
+        setError(`${file.name}: files here can be up to ${maxMb} MB.`);
+        continue;
+      }
       const r = await uploadFile({ workspaceId, entityType, entityId, file });
       if (!r.ok) setError(`${file.name}: ${r.message}`);
     }
+    onUploaded?.();
     setBusy(false);
     if (input.current) input.current.value = "";
     load();
@@ -64,6 +74,7 @@ export function Attachments({
     if (!window.confirm(`Delete ${f.file_name}?`)) return;
     const r = await deleteFile(f.id);
     if (!r.ok) setError(r.message);
+    onUploaded?.();
     load();
   }
 
@@ -87,7 +98,7 @@ export function Attachments({
       {error && <div className="mb-2"><Alert>{error}</Alert></div>}
       {!uploadsOn && <p className="mb-2 text-xs text-slate-500">Uploads are turned off for this company.</p>}
       {list.length === 0 ? (
-        <p className="text-sm text-slate-500">{showUpload ? `No files yet. Up to ${MAX_FILE_MB} MB each.` : "No files."}</p>
+        <p className="text-sm text-slate-500">{showUpload ? `No files yet. Up to ${maxMb} MB each.` : "No files."}</p>
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
           {list.map((f) => (
