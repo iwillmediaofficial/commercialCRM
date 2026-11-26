@@ -17,6 +17,9 @@ const ACTION_LABEL: Record<string, string> = {
   renewal_rejected: "Rejected renewal",
   pin_issued: "Issued PIN",
   support_view: "Opened workspace",
+  support_start: "Started acting as owner",
+  support_end: "Stopped acting as owner",
+  support_action: "Change as owner",
   plans_insert: "Created plan",
   plans_update: "Changed plan",
   platform_settings_update: "Changed settings",
@@ -32,6 +35,13 @@ function describe(action: string, d: Details) {
   if (d.valid_until) parts.push(`until ${new Date(String(d.valid_until)).toLocaleDateString()}`);
   if (d.reason) parts.push(`“${d.reason}”`);
   if (d.note) parts.push(`“${d.note}”`);
+  if (action === "support_action") {
+    const verb = d.op === "INSERT" ? "Added to" : d.op === "DELETE" ? "Deleted from" : "Edited in";
+    const what = String(d.table ?? "").replace(/_/g, " ");
+    const n = Number(d.count ?? 1);
+    parts.push(`${verb} ${n > 1 ? `${n} rows in ` : ""}${what}${d.label && n === 1 ? `: ${d.label}` : ""}`);
+  }
+  if (action === "support_end" && d.expired) parts.push("Time ran out");
   return parts.join(" · ") || (action === "support_view" ? "Read-only" : "");
 }
 
