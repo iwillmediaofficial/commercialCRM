@@ -127,10 +127,20 @@ export default function Companies() {
 function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[]; onChanged: () => void }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [actError, setActError] = useState("");
   const left = daysLeft(w.valid_until);
 
   async function openWorkspace() {
+    // Read-only view: close any full-access session first.
+    await supabase.rpc("admin_end_support");
     await supabase.rpc("admin_log_support_view", { p_workspace_id: w.id });
+    navigate(`/w/${w.slug}`);
+  }
+
+  // Full owner-level access, logged in the audit log.
+  async function actAsOwner() {
+    const { error } = await supabase.rpc("admin_start_support", { p_workspace_id: w.id });
+    if (error) return setActError(error.message);
     navigate(`/w/${w.slug}`);
   }
 
@@ -158,7 +168,9 @@ function CompanyRow({ w, plans, onChanged }: { w: Row; plans: Tables<"plans">[];
         <td className="py-2">{date(w.valid_until)}</td>
         <td className="space-x-2 whitespace-nowrap py-2 text-right">
           <Button variant="secondary" onClick={openWorkspace} title="Open this company's workspace read-only">Open</Button>
+          <Button onClick={actAsOwner} title="Open this company with full owner access. Every change is logged.">Act as owner</Button>
           <Button variant="secondary" onClick={() => setOpen(!open)}>{open ? "Close" : "Manage"}</Button>
+          {actError && <div className="mt-1 whitespace-normal text-xs text-red-600">{actError}</div>}
         </td>
       </tr>
       {open && (

@@ -294,6 +294,33 @@ export type Database = {
           },
         ]
       }
+      support_sessions: {
+        Row: {
+          id: string
+          admin_id: string
+          workspace_id: string
+          started_at: string
+          expires_at: string
+          ended_at: string | null
+        }
+        Insert: {
+          id?: string
+          admin_id: string
+          workspace_id: string
+          started_at?: string
+          expires_at?: string
+          ended_at?: string | null
+        }
+        Update: {
+          id?: string
+          admin_id?: string
+          workspace_id?: string
+          started_at?: string
+          expires_at?: string
+          ended_at?: string | null
+        }
+        Relationships: []
+      }
       admin_audit_log: {
         Row: {
           action: string
@@ -2648,6 +2675,14 @@ export type Database = {
           p_valid_until?: string
         }
         Returns: Json
+      }
+      admin_start_support: {
+        Args: { p_workspace_id: string }
+        Returns: string
+      }
+      admin_end_support: {
+        Args: never
+        Returns: undefined
       }
       admin_log_support_view: {
         Args: { p_workspace_id: string }

@@ -5,7 +5,9 @@ import type { WorkspaceStatus } from "./status";
 export type WorkspaceCtx = {
   workspace: Tables<"workspaces">;
   plan: Tables<"plans"> | null;
-  role: MemberRole | null; // null = Super Admin looking in
+  role: MemberRole | null; // null = Super Admin looking in (read-only)
+  // Set while the Super Admin is acting as this company's owner (full access, logged).
+  support: { until: string } | null;
   status: WorkspaceStatus;
   isAdmin: boolean;
   canWrite: boolean;

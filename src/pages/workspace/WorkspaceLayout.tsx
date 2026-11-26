@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Navigate, Outlet, useLocation, useParams } from "react-router";
+import { Link, Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router";
 import { supabase, type Tables } from "../../lib/supabase";
 import { useAuth } from "../../lib/auth";
 import { STATUS_LABEL, type WorkspaceStatus } from "../../lib/status";
@@ -27,6 +27,9 @@ export default function WorkspaceLayout() {
   const me = session?.user.id ?? "";
   const [ctx, setCtx] = useState<WorkspaceCtx | null>(null);
   const [missing, setMissing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [supportError, setSupportError] = useState("");
+  const navigate = useNavigate();
   const [logoPath, setLogoPath] = useState<string | null>(null);
   const [counts, setCounts] = useState({ newLeads: 0, dueWork: 0, dueFollowUps: 0, waUnread: 0 });
   const { pathname } = useLocation();
@@ -37,14 +40,22 @@ export default function WorkspaceLayout() {
       const { data: ws } = await supabase.from("workspaces").select("*, plan:plans(*)").eq("slug", slug ?? "").maybeSingle();
       if (cancelled) return;
       if (!ws) return setMissing(true);
-      const [{ data: status }, { data: settings }] = await Promise.all([
+      const memberRole = memberships.find((m) => m.workspace_id === ws.id)?.role ?? null;
+      const [{ data: status }, { data: settings }, { data: open }] = await Promise.all([
         supabase.rpc("workspace_status", { ws: ws.id }),
         supabase.from("workspace_settings").select("logo_path").eq("workspace_id", ws.id).maybeSingle(),
+        // The Super Admin acting as this company's owner.
+        !memberRole && isPlatformAdmin
+          ? supabase.from("support_sessions").select("expires_at").eq("workspace_id", ws.id)
+              .is("ended_at", null).gt("expires_at", new Date().toISOString())
+              .order("started_at", { ascending: false }).limit(1).maybeSingle()
+          : { data: null },
       ]);
       if (cancelled) return;
       setLogoPath(settings?.logo_path ?? null);
       const { plan, ...workspace } = ws as Tables<"workspaces"> & { plan: Tables<"plans"> | null };
-      const role = memberships.find((m) => m.workspace_id === ws.id)?.role ?? null;
+      const support = open ? { until: open.expires_at } : null;
+      const role = memberRole ?? (support ? "owner" : null);
       const s = (status ?? "expired") as WorkspaceStatus;
       const isAdmin = role === "owner" || role === "admin";
       setCtx({
@@ -52,6 +63,7 @@ export default function WorkspaceLayout() {
         plan,
         role,
         status: s,
+        support,
         isAdmin,
         canWrite: role !== null && ["trial", "active", "grace"].includes(s),
         hasModule: (m) => Boolean(plan?.modules.includes(m)),
@@ -60,7 +72,29 @@ export default function WorkspaceLayout() {
     return () => {
       cancelled = true;
     };
-  }, [slug, memberships]);
+  }, [slug, memberships, isPlatformAdmin, reloadKey]);
+
+  // Full access ends by itself after a few hours; drop back to read-only then.
+  const supportUntil = ctx?.support?.until;
+  useEffect(() => {
+    if (!supportUntil) return;
+    const ms = new Date(supportUntil).getTime() - Date.now();
+    const t = window.setTimeout(() => setReloadKey((k) => k + 1), Math.max(ms, 0) + 1000);
+    return () => window.clearTimeout(t);
+  }, [supportUntil]);
+
+  async function startSupport() {
+    if (!ctx) return;
+    const { error } = await supabase.rpc("admin_start_support", { p_workspace_id: ctx.workspace.id });
+    if (error) return setSupportError(error.message);
+    setSupportError("");
+    setReloadKey((k) => k + 1);
+  }
+
+  async function endSupport() {
+    await supabase.rpc("admin_end_support");
+    navigate("/admin");
+  }
 
   // Settings saves a new logo right away; pick it up without a reload.
   const workspaceId = ctx?.workspace.id;
@@ -107,7 +141,7 @@ export default function WorkspaceLayout() {
   if (missing) return <Navigate to="/" replace />;
   if (!ctx) return <Spinner />;
 
-  const support = isPlatformAdmin && !ctx.role;
+  const support = isPlatformAdmin && (!ctx.role || !!ctx.support);
   const admin = ctx.isAdmin || support;
   const groups: NavGroup[] = [
     { items: [{ to: "", label: "Dashboard", icon: "dashboard", end: true }] },
@@ -165,7 +199,7 @@ export default function WorkspaceLayout() {
       )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[15px] font-semibold text-white">{ctx.workspace.name}</span>
-        <span className="block text-xs text-slate-400">{ctx.role ? "Workspace" : "Viewing as Super Admin"}</span>
+        <span className="block text-xs text-slate-400">{ctx.support ? "Super Admin as owner" : ctx.role ? "Workspace" : "Viewing as Super Admin"}</span>
       </span>
       {multi && <Icon name="chevrons" className="h-4 w-4 shrink-0 text-slate-500" />}
     </Link>
@@ -201,9 +235,9 @@ export default function WorkspaceLayout() {
         search={<WorkspaceSearch />}
         right={
           <>
-            {ctx.hasModule("work") && ctx.role && <TimerBar />}
+            {ctx.hasModule("work") && ctx.role && !ctx.support && <TimerBar />}
             <NotificationBell workspace={ctx.workspace} />
-            <UserMenu roleLabel={ctx.role ?? "Super Admin"} />
+            <UserMenu roleLabel={ctx.support ? "Super Admin (as owner)" : ctx.role ?? "Super Admin"} />
           </>
         }
       >
@@ -218,13 +252,34 @@ export default function WorkspaceLayout() {
   function subscriptionBanner() {
     if (!ctx) return null;
     const until = new Date(ctx.workspace.valid_until).toLocaleDateString();
+    if (ctx.support)
+      return (
+        <div className="mb-4 rounded-xl bg-amber-100 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-300">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>
+              <strong>Acting as owner of {ctx.workspace.name}.</strong> You can change anything the owner can. Every change is logged
+              in the Super Admin audit log. Full access ends at {new Date(ctx.support.until).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.
+              {!["trial", "active", "grace"].includes(ctx.status) && " This company's subscription has ended, so it is read-only for the owner too."}
+            </span>
+            <button className="rounded-lg bg-amber-900 px-3 py-1.5 font-semibold text-white hover:bg-amber-800" onClick={endSupport}>
+              Exit company
+            </button>
+          </div>
+        </div>
+      );
     if (ctx.role === null)
       return (
         <Alert tone="info">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>You are viewing {ctx.workspace.name} as Super Admin. Nothing can be changed from here.</span>
-            <Link className="font-medium underline" to="/admin">Exit to Super Admin</Link>
+            <span>You are viewing {ctx.workspace.name} as Super Admin. Nothing can be changed in this view.</span>
+            <span className="flex flex-wrap items-center gap-3">
+              {isPlatformAdmin && (
+                <button className="font-semibold text-brand-700 underline" onClick={startSupport}>Switch to full access</button>
+              )}
+              <Link className="font-medium underline" to="/admin">Exit to Super Admin</Link>
+            </span>
           </div>
+          {supportError && <div className="mt-1 text-red-700">{supportError}</div>}
         </Alert>
       );
     if (ctx.status === "grace") return <Alert tone="warning">The subscription ended on {until}. Renew soon to keep editing.</Alert>;
